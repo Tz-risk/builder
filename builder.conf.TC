@@ -1,0 +1,121 @@
+# Available variables for use in below values:
+#   ARCH	the current CPU architecture being compiled (e.g. i32, i64, ...)
+#   NAME	the name of the package being compiled
+#   PACK	the type of package being made (e.g. bin, dev, doc, ...)
+#   PASS	the current pass count for multi-pass compiling
+#
+# NOTE: the below value can NOT be adjusted here since it is a circular value
+# DIR_CONF='/etc/builder'
+
+
+
+
+# The staging location that will be the target to dump compiled programs into
+# for making the various packages
+#DIR_DUMP='/tmp/staging'
+
+# This will store the directory structure and files to include in the package:
+#	usr/local/share/applications/foo.desktop, usr/local/tce.installed/foo, ...
+#DIR_INCL='${DIR_CONF}/${NAME}/include'
+
+# The directory where the package contents will reside in the running system
+#DIR_INST='/usr/local'
+
+# This will store individual compile parameters for each package
+#DIR_MAKE="${DIR_CONF}/${NAME}"
+
+# This will store any modifications/patches that need to be made to the source
+# code before compiling occurs
+#DIR_MODS="${DIR_CONF}/${NAME}/patches"
+
+# The location that the packaged software will be stored (local software repo)
+#DIR_REPO='/tmp/repo'
+
+# The temporary location to store any information needed by this script
+#DIR_TEMP='/tmp/builder'
+
+# This will store any files that are used to compile (e.g. httpd.conf for php)
+#DIR_XTRA="${DIR_CONF}/${NAME}/extras"
+
+
+# Compile-time deps list for all projects (e.g. compiletc,mksquashfs-tools,...)
+DEP_MAKE_ALL='compiletc.tcz squashfs-tools.tcz rsync.tcz findutils.tcz'
+
+
+# The file extensions for the various packages created by this script
+# NOTE: if including variables in the name, surround with single quotes (')
+EXT_CODE='.tgz'
+EXT_DEPS='-${PACK}.tcz.dep'
+EXT_HASH='-${PACK}.tcz.md5.txt'
+EXT_INFO='-${PACK}.tcz.info'
+EXT_LIST='-${PACK}.tcz.list'
+EXT_SOFT='-${PACK}.tcz'
+
+
+# The ownership to apply to files of the package
+OWN_USER='root'
+OWN_GROUP='root'
+
+# The permissions to apply to contents of the package
+PRM_DIRS='755'
+PRM_FILES='644'
+PRM_EXECS='755'
+
+# The URL's that can be used to obtain the source code and package information
+# NOTE: a blank value disables
+URL_CODE='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/src/${NAME}/${NAME}${EXT_CODE}'
+URL_INFO='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/${NAME}${EXT_INFO}'
+
+# The software package manager command to install compile-time dependencies
+SPM_ALL='tce-load -w $DEP_MAKE_ALL; tce-load -il $DEP_MAKE_ALL'
+SPM_PAK='tce-load -w $DEP_MAKE_PAK; tce-load -il $DEP_MAKE_PAK'
+# ...and to unload them (to keep the environment clean)
+SPM_UNL=''
+
+# The CPU architectures that you wish to compile for (comma separated)
+#CPU='i32,i64,r32'
+
+# The log file for compile output (contains both stdout and stderr)
+#LOG='/var/log/builder.log'
+
+# Whether or not 'sudo' should be called for all commands after the 'ownership
+# and permissions' have been set (if they are restrictive enough to warrant it)
+# NOTE: to use 'sudo' with parameters, simply add them for the SUDO value:
+#   SUDO='sudo -x -y -z'
+SUDO=TRUE
+
+
+# Set default compile flags per CPU architecture (which can be overwritten with
+# individual DIR_MAKE files)
+#if [ "$2" = 'i32' ]; then
+#	EXPORTS="export CFLAGS='-march=i486 -mtune=i686 -Os -pipe'
+#		export CXXFLAGS='-march=i486 -mtune=i686 -Os -pipe'
+#		export LDFLAGS='-Wl,-O1'
+#		export PKG_CONFIG_PATH='/usr/local/lib/pkgconfig:/usr/lib/pkgconfig'"
+#elif [ "$2" = 'i64' ]; then
+#	EXPORTS="export CFLAGS='-mtune=generic -Os -pipe'
+#		export CXXFLAGS='-mtune=generic -Os -pipe'
+#		export LDFLAGS='-Wl,-O1'
+#		export PKG_CONFIG_PATH='/usr/local/lib/pkgconfig:/usr/lib/pkgconfig'"
+#elif [ "$2" = 'r32' ]; then
+#	EXPORTS="export CFLAGS='-march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -Os -pipe'
+#		export CXXFLAGS='-march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -Os -pipe'
+#		export LDFLAGS='-Wl,-O1'
+#		export PKG_CONFIG_PATH='/usr/local/lib/pkgconfig:/usr/lib/pkgconfig'"
+#fi
+
+
+# Whether or not to show debug output during processing
+#DEBUG=0
+
+
+
+
+# [CUSTOM VARIABLES]
+
+# This section can store custom variables used in any of the related files for a
+# specific software title.  For example, if your distro uses a certain user and/
+# or group to run a daemon, that information can be defined here and referenced
+# in its config file for the compile syntax. This provides a central location to
+# easily change these values instead of on a per-software basis.
+
