@@ -1,2 +1,77 @@
-# builder
-A compiling framework to build and package software
+# [PREAMBLE]
+
+	Thanks for taking interest in builder! This project was designed to not
+	only make it easier to compile software, but to also enable a quick way
+	to distribute the means of doing so. Imagine having a very small tarball
+	that contains all the information to automatically obtain the source
+	code, apply patches, install the necessary software to compile, compile
+	the software (multi-pass is also possible), and finally bundle all of
+	that into a nice distribution package for you - all just by typing a
+	short command! Well that's exactly what builder does for you!
+
+		TODO
+			o add the construction of a (generic) .info file
+
+
+
+
+# [FOR SOFTWARE DEVELOPERS]
+
+	Builder works with a variety of popular methods of compilation including
+	autoconf, autogen, bootstrap, cmake, scons, and a default (configure,
+	make, make install). There is even an option to create a custom method
+	if you require it. This allows you the freedom to choose which one will
+	work best for you and your project.
+
+	While builder does not make any stage of development easier for you, its
+	main design goal is to aid in the rapid distribution of your project to
+	the package maintainers of the various Linux distros. By constructing a
+	(generic) builder profile for your work, you are helping to streamline
+	the steps necessary for them to tailor your software to their specific
+	environment. We would encourage any developer to include this as a
+	tarball packaged with their source code, or at least an option to
+	download from their website.
+
+
+
+
+# [FOR PACKAGE MAINTAINERS]
+
+	It is important to note that this software will not magically determine
+	all of the steps above and do it for you. Someone has to actually
+	perform these steps initially (which ideally would be the software
+	developer themself). This project is meant to provide an easy way to use
+	the contributions of others who have taken those steps, and allow other
+	package maintainers of different distros to quickly tweak the software
+	building process to fit their own system. By getting a builder profile
+	for a package, it is trivial to modify the compile parameters, add or
+	remove patches, add or remove graphics, GUI desktop files, and other
+	items to specifically tailor a software build.
+
+	To assist in the packaging process, there are multiple scripts that
+	can optionally be executed to perform any desired tasks along the way.
+	See the wiki, the included 'NOTES' file, or '--help' output for more
+	information.
+
+
+
+
+# [FUTURE DEV TIMELINE]
+
+	Since we are working with several many projects (13 on github alone),
+	we are going to provide an anticipated timeline of releases using
+	internal staff. Obviously outside contribution will advance these
+	forecasted dates.
+
+	2025 Oct - completion of ModuleMaker for webWorks
+	2025 Dec - migration of existing webWorks modules using ModuleMaker
+	2026 Jan - migration of Tracker into webWorks and deprecation of
+	           of standalone project
+	2026 Feb - update paged to 2018 code base from ACME
+	         - update pax to work with (TC) TinyCore Linux
+	         - apply any patches for bug fixes to existing projects
+	2026 Mar - update web.libs for dittodata and web.de
+	2026 Jul - move code from web.de into cli.de and update the former
+	           to use the latter via XML communication
+	2026     - rest of 2026 tbd
+
