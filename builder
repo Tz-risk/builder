@@ -1,8 +1,8 @@
 #!/bin/sh
 # builder	a small script to build software for Linux distros
 #
-# Created	2017/07/08 by Dave Henderson (dhenderson@cliquesoft.org or support@cliquesoft.org)
-# Updated	2017/11/04 by Dave Henderson (dhenderson@cliquesoft.org or support@cliquesoft.org)
+# Created	2017/07/08 by Dave Henderson (support@cliquesoft.org)
+# Updated	2017/11/04 by Dave Henderson (support@cliquesoft.org)
 #
 # License	2-clause BSD License
 #		https://en.wikipedia.org/wiki/BSD_licenses#2-clause_license_.28.22Simplified_BSD_License.22_or_.22FreeBSD_License.22.29
@@ -150,6 +150,7 @@ FLAG_MAKE=''							# the flags to pass to the 'make' call
 								#	Also some variables below are exported so the 'pre' and 'post' scripts can access them.
 THIS="$0"							# stores this script for multi-pass calls
 CWDL="$(pwd)"							# stores the current working directory location
+EXAMPLE=''							# if we need to generate an example .info file
 PATCH=TRUE							# indicates we need to apply patches to the source code
 TEMP=''								# stores a temporary value
 UNLOAD=TRUE							# indicates we need to unload the packages afterwards - regardless of success or failure
@@ -229,7 +230,8 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 	#echo "	-c	the phrase that will uniquely identify the source code directory"	# this is useful when several packages are required to make an extension (e.g. alsa-lib, alsa-utils)
 	echo "	-d	package using directories in DIR_DUMP instead of NAME value"		# this is useful if a pre/post script creates multiple packages from a single compile (e.g. php, php-cli, php-fpm, etc)
 	echo "	-D	download the source code from your online repo"
-	echo "	-L	obtain the source code from your local repo"				# this would be considered a local directory (e.g. /mnt/repo)
+	echo "  -e	generate an example .info file to use"
+	echo "	-L	obtain the source code from a local directory"				# this would be considered a local directory (e.g. /mnt/repo)
 	echo "	-n	the name of the application to build"					# NOTE: the corresponds to the /etc/builder/NAME directory
 	echo "	-p	the number of passes to make when compiling"				# NOTE: this can use per-pass files (e.g. pre.1, pre.2, config.1, etc)
 	echo "	-P	prevent patching from occurring"					# this will prevent the patching stage if the patches have already been applied to the source code
@@ -246,7 +248,7 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 	echo "			custom"
 	echo "			default (configure, make, make install)"
 	echo "			scons"
-	echo "	-U	do not unload packages afterwards"					# this is useful for testing the build profile before it works correctly -OR- just to prevent excessive resource usage when building an entire repo
+	echo "	-U	do not unload compilation packages afterwards"				# this is useful for testing the build profile before it works correctly -OR- just to prevent excessive resource usage when building an entire repo
 	echo
 	echo "	--help		shows this screen"
 	echo "	--version	shows the version of this script"
@@ -255,17 +257,29 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 	echo "	- Start this program from within the source code directory"
 	echo "	- If the '-D' switch was passed the above note can be ignored"
 	echo "	- The '-s' switch requires a '-p' value"
+	echo "  - For flexibility there are scripts that can be incorporated"
+	echo "    executed at the various stages of construction:"
+	echo "        config		the compile configuration"
+	echo "        pre.compile	executed right before compiling"
+	echo "        post.configure	executed after a generated config"
+	echo "        post.compile	executed after compiling"
+	echo "        pre.package	executed right before packaging"
+	echo "        post.package	executed after packaging"
+	echo "        proper		indicates a final cleanup"
+	echo "  - For multi-pass compiles, name the files in a mannor such as:"
+	echo "    pre.compile.1, pre.compile.2, config.1, config.2, etc"
 	echo
 	exit 0
 elif [ "$1" == '--version' ]; then
 	head -5 $0 | grep Updated | sed "s/.*\\t//;s/ .*//;s:/:.:g"
 	exit 0
 else
-	while getopts a:dDLn:p:Pr:sSt:U OPTION; do		# NOTE: the 'a:' indicates that the '-a' switch requires a value!
+	while getopts a:dDeLn:p:Pr:sSt:U OPTION; do		# NOTE: the 'a:' indicates that the '-a' switch requires a value!
 		case ${OPTION} in
 			a) ARCH="$OPTARG" ;;
 			d) DIRS=TRUE ;;
 			D) WGET='private' ;;
+			e) EXAMPLE=TRUE ;;
 			L) WGET='local' ;;
 			n) NAME="$OPTARG" ;;
 			p) PASS="$OPTARG" ;;
@@ -278,6 +292,30 @@ else
 			*) exit 1 ;;				# NOTE: since 'getopts' presents it own error, we don't need to do so here
 		esac
 	done
+
+	if [ "$EXAMPLE" == 'TRUE' ]; then
+		echo "name:		Example Utilities" > example.info
+		echo "title:		Utilities for processing example streams" >> example.info
+		echo "version:	1.2.3" >> example.info
+		echo "git:		abcd...wxyz" >> example.info
+		echo "packaged:	YYYY.MM.DD" >> example.info
+		echo "released:	YYYY.MM.DD" >> example.info
+		echo "authors:	Example Name" >> example.info
+		echo "homepage:	https://www.project.com/any/sub/dirs/" >> example.info
+		echo "download:	ftp://ftp.project.com/any/sub/dirs/" >> example.info
+		echo "filename:	example-1.2.3.tgz" >> example.info
+		echo "category:	system" >> example.info
+		echo "rating:		g" >> example.info
+		echo "interface:	cli" >> example.info
+		echo "license:	LGPLv2.1" >> example.info
+		echo "licenseURI:	https://www.gnu.org/licenses/lgpl-2.1.en.html" >> example.info
+		echo "maintainer:	example_maintainer_alias" >> example.info
+		echo "tags:		space separated project keywords" >> example.info
+		echo "overview:	This is a brief overview for the example project" >> example.info
+		echo "comments:	" >> example.info
+		echo "changes:	" >> example.info
+		exit 0
+	fi
 
 	# test for mandatory values
 	[ "$NAME" = '' ] && { echo "ERROR: you must provide a name before building can begin." | tee -a "$LOG"; exit 1; }
