@@ -10,7 +10,7 @@
 	short command! Well that's exactly what builder does for you!
 
 		TODO
-			o add the construction of a post-build .info file
+		- add the construction of a post-build .info file
 
 
 
