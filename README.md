@@ -10,7 +10,7 @@
 	short command! Well that's exactly what builder does for you!
 
 		TODO
-			o add the construction of a (generic) .info file
+			o add the construction of a post-build .info file
 
 
 
@@ -19,10 +19,10 @@
 
 	To Install:
 		1. cd /path/to/builder
-		2. sudo cp ./pax /bin
+		2. sudo install.sh
 
 	To Use:
-		1. pax --help
+		1. builder --help
 
 
 
