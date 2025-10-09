@@ -15,6 +15,18 @@
 
 
 
+# [FOR THE IMPATIENT]
+
+	To Install:
+		1. cd /path/to/builder
+		2. sudo cp ./pax /bin
+
+	To Use:
+		1. pax --help
+
+
+
+
 # [FOR SOFTWARE DEVELOPERS]
 
 	Builder works with a variety of popular methods of compilation including

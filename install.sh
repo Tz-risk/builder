@@ -25,7 +25,7 @@ if [ ! -e /etc/builder ]; then
 		exit 1
 	}
 fi
-cp -f etc/* /etc/builder
+cp -f etc/builder/* /etc/builder
 if [ ! -e /usr/local/share/doc/builder ]; then
 	mkdir -p /usr/local/share/doc/builder || {
 		echo " [failure]"
