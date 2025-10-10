@@ -306,7 +306,9 @@ else
 		echo "filename:	example-1.2.3.tgz" >> example.info
 		echo "category:	system" >> example.info
 		echo "rating:		g" >> example.info
-		echo "interface:	cli" >> example.info
+		echo "interface:	gui" >> example.info				# valid values: cli,gui
+		echo "toolkit:	gtk" >> example.info					# possible values: shell|lua|ruby|php|python|tcl|tk|... (cli), gtk, fltk  plasma, html, ...
+		echo "toolkitVer:	2.0" >> example.info
 		echo "license:	LGPLv2.1" >> example.info
 		echo "licenseURI:	https://www.gnu.org/licenses/lgpl-2.1.en.html" >> example.info
 		echo "maintainer:	example_maintainer_alias" >> example.info
