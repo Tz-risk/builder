@@ -5,9 +5,9 @@
 	to distribute the means of doing so. Imagine having a very small tarball
 	that contains all the information to automatically obtain the source
 	code, apply patches, install the necessary software to compile, compile
-	the software (multi-pass is also possible), and finally bundle all of
-	that into a nice distribution package for you - all just by typing a
-	short command! Well that's exactly what builder does for you!
+	the software (multi-pass is also possible), and finally, if desired,
+	bundle all of that into nice distribution packages for you - all just
+	by typing a short command! Well that's exactly what builder can do!
 
 		TODO
 		- add the construction of a post-build .info file
@@ -36,8 +36,9 @@
 	work best for you and your project.
 
 	While builder does not make any stage of development easier for you, its
-	main design goal is to aid in the rapid distribution of your project to
-	the package maintainers of the various Linux distros. By constructing a
+	main design goal is to make is VERY easy for an end user to compile your
+	software, or aid in the rapid distribution of your project to qualified
+	package maintainers of the various Linux distros. By constructing a
 	(generic) builder profile for your work, you are helping to streamline
 	the steps necessary for them to tailor your software to their specific
 	environment. We would encourage any developer to include this as a
@@ -64,6 +65,36 @@
 	can optionally be executed to perform any desired tasks along the way.
 	See the wiki, the included 'NOTES' file, or '--help' output for more
 	information.
+
+
+
+
+# [ORDER OF OPERATIONS]
+
+	Below is the list of operations that are executed during a builder run.
+	As you can see there are several hooks that allow for external scripts
+	to be run that can do any additional steps that are desired.
+
+	1. Process passed switches
+	2. Adjust variable values for global and target package personalization
+	3. System checks to make sure everything exists and is writable
+	4. Install compile-time dependencies
+	5. Optionally obtain the source code
+	6. Apply any included patches to source code
+	7. [hook] Optionally execute pre.compile script
+	8. Compile process (configure)
+	9. [hook] Optionally execute post.configure script
+	10. Compile process (make, make check, ..., make install)
+	11. Copy in any 'extra' files
+	12. [hook] Optionally execute post.compile script
+	13. Optionally separate contents into individual package types
+	14. Apply file and directory ownership and permissions
+	15. [hook] Optionally execute pre.package script
+	16. Create the various packages
+	17. Copy the files into the local repo
+	18. [hook] Optionally execute post.package script
+	19. Cleanup
+	20. Initiate the next pass if designated
 
 
 

@@ -2,7 +2,7 @@
 # builder	a small script to build software for Linux distros
 #
 # Created	2017/07/08 by Dave Henderson (support@cliquesoft.org)
-# Updated	2017/11/04 by Dave Henderson (support@cliquesoft.org)
+# Updated	2025/10/15 by Dave Henderson (support@cliquesoft.org)
 #
 # License	2-clause BSD License
 #		https://en.wikipedia.org/wiki/BSD_licenses#2-clause_license_.28.22Simplified_BSD_License.22_or_.22FreeBSD_License.22.29
@@ -158,6 +158,7 @@ UNLOAD=TRUE							# indicates we need to unload the packages afterwards - regard
 export ARCH=''							# the current CPU architecture being compiled (e.g. i32, i64, ...)
 DIRS=''								# indicates we need to package using directory names instead of just a directory named NAME
 export NAME=''							# the name of the package being compiled
+export NOPK=''							# indicates that NO packaging should take place, only a software compile
 export PACK=''							# the type of package being made (e.g. bin, dev, doc, ...)
 export PASS=''							# the number of passes to make during compile (blank disables)
 SKIP=''								# indicates we need to skip packaging until the final pass
@@ -196,7 +197,7 @@ stop() {
 			rm -Rf "${DIR_TEMP:?}/${DIR}.pass" 2>>"$LOG"
 			rm -Rf "${DIR_TEMP:?}/${DIR}.sort" 2>>"$LOG"
 
-			[ -d "${DIR_DUMP:?}/${DIR}" ] && rm -Rf "${DIR_DUMP:?}/${DIR}" 2>>"$LOG"	# since the directory might not be renamed to DIR_DUMP.bin yet
+			[ -d "${DIR_DUMP:?}/${DIR}" ] && rm -Rf "${DIR_DUMP:?}/${DIR}" 2>>"$LOG" # since the directory might not be renamed to DIR_DUMP.bin yet
 			for PACK in bin dev doc drv gir lib loc; do
 				if [ -d "${DIR_DUMP:?}/${DIR}.${PACK}" ]; then
 					rm -Rf "${DIR_DUMP:?}/${DIR}.${PACK}" 2>>"$LOG" || {
@@ -206,7 +207,7 @@ stop() {
 				fi
 			done
 		done
-		[ -x "${DIR_MAKE}/cleanup" ] && "${DIR_MAKE}/cleanup" 2>>"$LOG"				# if a cleanup script has been included, execute it as well!
+		[ -x "${DIR_MAKE}/cleanup" ] && "${DIR_MAKE}/cleanup" 2>>"$LOG"			# if a cleanup script has been included, execute it as well!
 		( [ ! "$2" ] || [ $2 -eq 1 ] ) && exit 0
 	fi
 }
@@ -222,16 +223,25 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 	echo " configurations to tailor the software specifically for your distro."
 	echo
 	echo "  Usage:"
-	echo "	${THIS##*/} -n NAME [-a ARCH][-c ...][-d][-D][-p #][-s][-r ...][-t TYPE]"
+# UPDATED 2025/10/15 - to match current switches
+#	echo "	${THIS##*/} -n NAME [-a ARCH][-c ...][-d][-D][-p #][-s][-r ...][-t TYPE]"
+	echo "	${THIS##*/} -n NAME [-cCdDPsSU][-a ARCH][-p #][-r ...][-t TYPE]"
 	echo
 	echo "  Switches:"
 	echo "	-a	the CPU architecture to build: ${CPU},all (default)"
 	# NOTE: this was removed since this needs to be defined per pass
 	#echo "	-c	the phrase that will uniquely identify the source code directory"	# this is useful when several packages are required to make an extension (e.g. alsa-lib, alsa-utils)
-	echo "	-d	package using directories in DIR_DUMP instead of NAME value"		# this is useful if a pre/post script creates multiple packages from a single compile (e.g. php, php-cli, php-fpm, etc)
-	echo "	-D	download the source code from your online repo"
-	echo "  -e	generate an example .info file to use"
-	echo "	-L	obtain the source code from a local directory"				# this would be considered a local directory (e.g. /mnt/repo)
+	echo "	-c	obtain the source code from developer"					# this is based on the 'URL' and 'filename' values in the .info file	WARN: this requires an existing .info file with certain values!
+	echo "	-C	obtain the source code from distro repo"				# this 
+	echo "	-d	obtain the source code from a local directory"				# this would be considered a local directory (e.g. /mnt/repo)
+# UPDATED 2025/10/15 - moved from -d to -D
+#	echo "	-d	package using directories in DIR_DUMP instead of NAME value"		# this is useful if a pre/post script creates multiple packages from a single compile (e.g. php, php-cli, php-fpm, etc)
+	echo "	-D	package using directories in DIR_DUMP instead of NAME value"		# this is useful if a pre/post script creates multiple packages from a single compile (e.g. php, php-cli, php-fpm, etc)
+# UPDATED 2025/10/15 - moved from -D to -C
+#	echo "	-D	download the source code from your online repo"
+	echo "	-e	generate an example .info file to use"
+# UPDATED 2025/10/15 - moved from -L to -d
+#	echo "	-L	obtain the source code from a local directory"				# this would be considered a local directory (e.g. /mnt/repo)
 	echo "	-n	the name of the application to build"					# NOTE: the corresponds to the /etc/builder/NAME directory
 	echo "	-p	the number of passes to make when compiling"				# NOTE: this can use per-pass files (e.g. pre.1, pre.2, config.1, etc)
 	echo "	-P	prevent patching from occurring"					# this will prevent the patching stage if the patches have already been applied to the source code
@@ -239,7 +249,9 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 # LEFT OFF - implement
 #	echo "	-R	only re-package software instead of building from source code"		# this will be useful if something in DIR_INCL gets updated (e.g. added a .desktop file)
 	echo "	-s	skips packaging until final pass"
-	echo "	-S	download the source code from offical source"				# this is based on the 'URL' and 'filename' values in the .info file	WARN: this requires an existing .info file with certain values!
+# UPDATED 2025/10/15 - moved from -S to -c
+#	echo "	-S	download the source code from offical source"				# this is based on the 'URL' and 'filename' values in the .info file	WARN: this requires an existing .info file with certain values!
+	echo "	-S	skips packaging altogether and just compiles the software"		# this is so that end users can simply download source code and build locally without having to package anything
 	echo "	-t	the compile type to use:"
 	echo "			autoconf"
 	echo "			autogen"
@@ -255,38 +267,53 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 	echo
 	echo "  Notes:"
 	echo "	- Start this program from within the source code directory"
-	echo "	- If the '-D' switch was passed the above note can be ignored"
+# UPDATED 2025/10/15 - moved from -D to -C
+#	echo "	- If the '-D' switch was passed the above note can be ignored"
+	echo "	- If the '-C' switch was passed the above note can be ignored"
 	echo "	- The '-s' switch requires a '-p' value"
-	echo "  - For flexibility there are scripts that can be incorporated"
-	echo "    executed at the various stages of construction:"
-	echo "        config		the compile configuration"
-	echo "        pre.compile	executed right before compiling"
-	echo "        post.configure	executed after a generated config"
-	echo "        post.compile	executed after compiling"
-	echo "        pre.package	executed right before packaging"
-	echo "        post.package	executed after packaging"
-	echo "        proper		indicates a final cleanup"
-	echo "  - For multi-pass compiles, name the files in a mannor such as:"
-	echo "    pre.compile.1, pre.compile.2, config.1, config.2, etc"
+	echo "	- The '-D' switch is useful for making multiple packages from"
+	echo "	  a single compile (e.g. php, php-cli, php-fpm, ...)"
+	echo "	- For flexibility there are scripts that can be incorporated"
+	echo "	  executed at the various stages of construction:"
+	echo "	      config		the compile configuration"
+	echo "	      pre.compile	executed right before compiling"
+	echo "	      post.configure	executed after a generated config"
+	echo "	      post.compile	executed after compiling"
+	echo "	      pre.package	executed right before packaging"
+	echo "	      post.package	executed after packaging"
+	echo "	      proper		indicates a final cleanup"
+	echo "	- For multi-pass compiles, name the files in a mannor such as:"
+	echo "	  pre.compile.1, pre.compile.2, config.1, config.2, etc"
 	echo
 	exit 0
 elif [ "$1" == '--version' ]; then
 	head -5 $0 | grep Updated | sed "s/.*\\t//;s/ .*//;s:/:.:g"
 	exit 0
 else
-	while getopts a:dDeLn:p:Pr:sSt:U OPTION; do		# NOTE: the 'a:' indicates that the '-a' switch requires a value!
+# UPDATED 2025/10/15 - moved -S to -c, -D to -C
+#	while getopts a:dDeLn:p:Pr:sSt:U OPTION; do		# NOTE: the 'a:' indicates that the '-a' switch requires a value!
+	while getopts a:cCdDen:p:Pr:sSt:U OPTION; do		# NOTE: the 'a:' indicates that the '-a' switch requires a value!
 		case ${OPTION} in
 			a) ARCH="$OPTARG" ;;
-			d) DIRS=TRUE ;;
-			D) WGET='private' ;;
+			c) WGET='public' ;;
+			C) WGET='private' ;;
+			d) WGET='local' ;;
+# UPDATED 2025/10/15 - moved from -d to -D
+#			d) DIRS=TRUE ;;
+			D) DIRS=TRUE ;;
+# UPDATED 2025/10/15 - moved from -D to -C
+#			D) WGET='private' ;;
 			e) EXAMPLE=TRUE ;;
-			L) WGET='local' ;;
+# UPDATED 2025/10/15 - moved from -L to -d
+#			L) WGET='local' ;;
 			n) NAME="$OPTARG" ;;
 			p) PASS="$OPTARG" ;;
 			P) PATCH='' ;;
 			r) TRIM="$OPTARG" ;;
 			s) SKIP=TRUE ;;
-			S) WGET='public' ;;
+# UPDATED 2025/10/15 - moved from -S to -c
+#			S) WGET='public' ;;
+			S) NOPK=TRUE ;;
 			t) TYPE="$OPTARG" ;;
 			U) UNLOAD='' ;;
 			*) exit 1 ;;				# NOTE: since 'getopts' presents it own error, we don't need to do so here
@@ -306,8 +333,8 @@ else
 		echo "filename:	example-1.2.3.tgz" >> example.info
 		echo "category:	system" >> example.info
 		echo "rating:		g" >> example.info
-		echo "interface:	gui" >> example.info				# valid values: cli,gui
-		echo "toolkit:	gtk" >> example.info					# possible values: shell|lua|ruby|php|python|tcl|tk|... (cli), gtk, fltk  plasma, html, ...
+		echo "interface:	gui" >> example.info	# valid values: cli,gui
+		echo "toolkit:	gtk" >> example.info		# possible values: shell|lua|ruby|php|python|tcl|tk|... (cli), gtk, fltk  plasma, html, ...
 		echo "toolkitVer:	2.0" >> example.info
 		echo "license:	LGPLv2.1" >> example.info
 		echo "licenseURI:	https://www.gnu.org/licenses/lgpl-2.1.en.html" >> example.info
@@ -323,14 +350,22 @@ else
 	[ "$NAME" = '' ] && { echo "ERROR: you must provide a name before building can begin." | tee -a "$LOG"; exit 1; }
 
 	# for optional values not configured above
-	if [ ! "$ARCH" ] || [ "$ARCH" = 'all' ]; then
+	if [ ! "$ARCH" ] || [ "$ARCH" = 'all' ]; then		# if the default (which is all) or a specified 'all' was passed, then...
 		# cycle each defined CPU architecture and compile
 		for ARCH in $(echo ${CPU} | sed 's/,/ /g'); do	# call this script again for all supported CPU architecture and exit
 			TEMP='"$THIS" -n "$NAME" -a "$ARCH" -t "$TYPE"'
-			[ "$WGET" = 'private' ] && TEMP="$TEMP -D"
-			[ "$WGET" = 'public' ] && TEMP="$TEMP -S"
-			[ "$WGET" = 'local' ] && TEMP="$TEMP -L"
-			[ "$DIRS" ] && TEMP="$TEMP -d"
+# UPDATED 2025/10/15 - moved from -D to -C
+#			[ "$WGET" = 'private' ] && TEMP="$TEMP -D"
+			[ "$WGET" = 'private' ] && TEMP="$TEMP -C"
+# UPDATED 2025/10/15 - moved from -S to -c
+#			[ "$WGET" = 'public' ] && TEMP="$TEMP -S"
+			[ "$WGET" = 'public' ] && TEMP="$TEMP -c"
+# UPDATED 2025/10/15 - moved from -L to -d
+#			[ "$WGET" = 'local' ] && TEMP="$TEMP -L"
+			[ "$WGET" = 'local' ] && TEMP="$TEMP -d"
+# UPDATED 2025/10/15 - moved from -d to -D
+#			[ "$DIRS" ] && TEMP="$TEMP -d"
+			[ "$DIRS" ] && TEMP="$TEMP -D"
 			[ "$PASS" ] && TEMP="$TEMP -p '$PASS'"
 			[ "$PATCH" ] && TEMP="$TEMP -P"
 			[ "$SKIP" ] && TEMP="$TEMP -s"
@@ -361,18 +396,29 @@ else
 	[ -e "${DIR_MAKE}/params" ] && . "${DIR_MAKE}/params"	# NOTE: these can completely specify or compliment passed switches (which override these)
 	[ -e "${HOME}/.${DIR_MAKE:1}/params" ] && . "${HOME}/.${DIR_MAKE:1}/params"		# same using a personalized params file
 	OPTIND=1						# reset the global variable used by 'getopts' so it can start over	https://unix.stackexchange.com/questions/233728/bash-function-with-getopts-only-works-the-first-time-its-run
-	while getopts a:dDLn:p:Pr:sSt:U OPTION; do		# NOTE: we have to process the passed switches again so they take precedence over the 'params' file above
+# UPDATED 2025/10/15 - moved -S to -c, -D to -C
+#	while getopts a:dDLn:p:Pr:sSt:U OPTION; do		# NOTE: we have to process the passed switches again so they take precedence over the 'params' file above
+	while getopts a:cCdDn:p:Pr:sSt:U OPTION; do		# NOTE: we have to process the passed switches again so they take precedence over the 'params' file above
 		case ${OPTION} in
 			a) ARCH="$OPTARG" ;;
-			d) DIRS=TRUE ;;
-			D) WGET='private' ;;
-			L) WGET='local' ;;
+			c) WGET='public' ;;
+			C) WGET='private' ;;
+			d) WGET='local' ;;
+# UPDATED 2025/10/15 - moved from -d to -D
+#			d) DIRS=TRUE ;;
+			D) DIRS=TRUE ;;
+# UPDATED 2025/10/15 - moved from -D to -C
+#			D) WGET='private' ;;
+# UPDATED 2025/10/15 - moved from -L to -d
+#			L) WGET='local' ;;
 			n) NAME="$OPTARG" ;;
 			p) PASS="$OPTARG" ;;
 			P) PATCH='' ;;
 			r) TRIM="$OPTARG" ;;
 			s) SKIP=TRUE ;;
-			S) WGET='public' ;;
+# UPDATED 2025/10/15 - moved from -S to -c
+#			S) WGET='public' ;;
+			S) NOPK=TRUE ;;
 			t) TYPE="$OPTARG" ;;
 			U) UNLOAD='' ;;
 		esac
@@ -389,15 +435,21 @@ fi
 	exit 1
 }
 [ "$WGET" = 'local' ] && [ ! "$DIR_REPO" ] && {
-	echo "ERROR: The '-L' switch requires a DIR_REPO value." | tee -a "$LOG"
+# UPDATED 2025/10/15 - moved from -L to -d
+#	echo "ERROR: The '-L' switch requires a DIR_REPO value." | tee -a "$LOG"
+	echo "ERROR: The '-d' switch requires a DIR_REPO value." | tee -a "$LOG"
 	exit 1
 }
 [ "$WGET" = 'private' ] && [ ! "$URL_CODE" ] && {
-	echo "ERROR: The '-D' switch requires a URL_CODE value." | tee -a "$LOG"
+# UPDATED 2025/10/15 - moved from -D to -C
+#	echo "ERROR: The '-D' switch requires a URL_CODE value." | tee -a "$LOG"
+	echo "ERROR: The '-C' switch requires a URL_CODE value." | tee -a "$LOG"
 	exit 1
 }
 [ "$WGET" = 'public' ] && [ ! "$URL_INFO" ] && {
-	echo "ERROR: The '-S' switch requires a URL_INFO value." | tee -a "$LOG"
+# UPDATED 2025/10/15 - moved from -S to -c
+#	echo "ERROR: The '-S' switch requires a URL_INFO value." | tee -a "$LOG"
+	echo "ERROR: The '-c' switch requires a URL_INFO value." | tee -a "$LOG"
 	exit 1
 }
 
@@ -521,6 +573,7 @@ rm "${DIR_TEMP}/${NAME}/writable" >>"$LOG" 2>&1
 	echo "   ARCH: $ARCH" | tee -a "$LOG"
 	echo "   DIRS: $DIRS" | tee -a "$LOG"
 	echo "   NAME: $NAME" | tee -a "$LOG"
+	echo "   NOPK: $NOPK" | tee -a "$LOG"
 	echo "   PASS: $PASS" | tee -a "$LOG"
 	echo "   SKIP: $SKIP" | tee -a "$LOG"
 	echo "   TRIM: $TRIM" | tee -a "$LOG"
@@ -563,7 +616,7 @@ rm "${DIR_TEMP}/${NAME}/writable" >>"$LOG" 2>&1
 echo -e "\nInstalling compile-time dependencies..." | tee -a "$LOG"
 
 # for core software by builder itself
-[ "$DEP_MAKE_ALL" ] && ( [ ! "$PASS" ] || [ $PASS -eq 1 ] ) && { eval $SPM_ALL 2>>"$LOG" || stop clean; }	# if we are only doing a single pass -OR- are on the first pass, then...
+[ "$DEP_MAKE_ALL" ] && ( [ ! "$PASS" ] || [ $PASS -eq 1 ] ) && { eval $SPM_ALL 2>>"$LOG" || stop clean; }			# if we are only doing a single pass -OR- are on the first pass, then...
 
 # for the software project itself
 [ "$DEP_MAKE_PAK" ] && { eval $SPM_PAK 2>>"$LOG" || stop clean; }
@@ -573,7 +626,7 @@ echo -e "\nInstalling compile-time dependencies..." | tee -a "$LOG"
 
 # FETCH SOURCE CODE
 
-if [ "$WGET" ]; then								# if we need to obtain the source code before we start, then...
+if [ "$WGET" ]; then										# if we need to obtain the source code before we start, then...
 	echo -e "\nObtaining source code..." | tee -a "$LOG"
 
 	cd "${DIR_TEMP}/${NAME}" || {
@@ -583,10 +636,10 @@ if [ "$WGET" ]; then								# if we need to obtain the source code before we sta
 	}
 	[ "$WGET" = 'local' ] && {
 		PACK='all'
-		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"			# if CODE has a value, then we need to set PACK as its preceeding value
-		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"	# apply the trim beforehand
+		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
+		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
 		[ ! "$TRIM" ] && TEMP="$NAME"
-		if [ ! -e "$(eval echo ${TEMP}${EXT_CODE})" ]; then		# if the source code is not already copied (e.g. by utilizing the same source code such as php, not like alsa-lib and alsa-config), then...
+		if [ ! -e "$(eval echo ${TEMP}${EXT_CODE})" ]; then				# if the source code is not already copied (e.g. by utilizing the same source code such as php, not like alsa-lib and alsa-config), then...
 			eval EXT_CODE="$EXT_CODE"
 			if [ -e "${DIR_REPO}/${TEMP}${EXT_CODE}" ]; then
 				cp "${DIR_REPO}/${TEMP}${EXT_CODE}" ./ 2>>"$LOG" || {
@@ -604,58 +657,58 @@ if [ "$WGET" ]; then								# if we need to obtain the source code before we sta
 	}
 	[ "$WGET" = 'private' ] && {
 		PACK='all'
-		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"			# if CODE has a value, then we need to set PACK as its preceeding value
-		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"	# apply the trim beforehand
+		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
+		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
 		[ ! "$TRIM" ] && TEMP="$NAME"
 		if [ ! -e "$(eval echo ${TEMP}${EXT_CODE})" ]; then
-			TEMP="$(echo "$URL_CODE" | sed "s/$NAME/$TEMP/g")"	# make name substitution in the URL (e.g. liba52 > a52)
+			TEMP="$(echo "$URL_CODE" | sed "s/$NAME/$TEMP/g")"			# make name substitution in the URL (e.g. liba52 > a52)
 			eval echo "Calling: wget \"$TEMP\"" >>"$LOG"
 			eval wget "$TEMP" 2>>"$LOG" || stop failed
 		fi
 	}
 	[ "$WGET" = 'public' ] && {
-		OARCH="$ARCH"							# temporarily store the old value
+		OARCH="$ARCH"									# temporarily store the old value
 		ARCH='all'
 		PACK='all'
-		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"			# if CODE has a value, then we need to set PACK as its preceeding value
-		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"	# apply the trim beforehand
+		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
+		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
 		[ ! "$TRIM" ] && TEMP="$NAME"
-		TEMP="$(echo "$URL_INFO" | sed "s/$NAME/$TEMP/g")"		# make name substitution in the URL (e.g. liba52 > a52)
-		if [ -e "$(eval echo ${TEMP##*/})" ]; then			# if the .info file is already downloaded (to prevent an erroneous error below), then...
-			TEMP="$(eval echo ${TEMP##*/})"				#   store that filename
-		else								# otherwise
+		TEMP="$(echo "$URL_INFO" | sed "s/$NAME/$TEMP/g")"				# make name substitution in the URL (e.g. liba52 > a52)
+		if [ -e "$(eval echo ${TEMP##*/})" ]; then					# if the .info file is already downloaded (to prevent an erroneous error below), then...
+			TEMP="$(eval echo ${TEMP##*/})"						#   store that filename
+		else										# otherwise
 			eval echo "Calling: wget \"$TEMP\"" >>"$LOG"
-			eval wget "$TEMP" 2>>"$LOG" || stop failed		#   download the proper .info file to get the download location and filename
-			TEMP="$(ls -1t | head -1)"				#   store the filename that was just downloaded
+			eval wget "$TEMP" 2>>"$LOG" || stop failed				#   download the proper .info file to get the download location and filename
+			TEMP="$(ls -1t | head -1)"						#   store the filename that was just downloaded
 		fi
 		if [ ! -e "$(grep -e ^'filename:' "${TEMP}" | sed 's/.*:\t//')" ]; then
 			TEMP="$(grep -e ^'download:' -e ^'filename:' "${TEMP}" | sed 's/.*:\t//' | tr '\n' '/' | sed 's:/$::')"	# grep out the meaningful lines and combine to produce a valid download URL
 			echo "Calling: wget \"$TEMP\"" >>"$LOG"
 			wget "$TEMP" 2>>"$LOG" || stop failed
 		fi
-		ARCH="$OARCH"							# restore the prior value
-		unset $OARCH							# get rid of that variable
+		ARCH="$OARCH"									# restore the prior value
+		unset $OARCH									# get rid of that variable
 	}
 
-	TEMP="$(ls -1t | head -1)"						# store the filename that was just downloaded
+	TEMP="$(ls -1t | head -1)"								# store the filename that was just downloaded
 	echo "Source Code File: $TEMP" >>"$LOG"
 	case $(file -b --mime-type "$TEMP") in
 		'application/zip') unzip "$TEMP" 2>>"$LOG" ;;
 		'application/x-gzip') tar -xzf "$TEMP" 2>>"$LOG" ;;
 		'application/x-bzip2')
-			[ ! -e "${TEMP%.*}" ] && bunzip2 "$TEMP" 2>>"$LOG"	# if the file is already uncompressed, then...
+			[ ! -e "${TEMP%.*}" ] && bunzip2 "$TEMP" 2>>"$LOG"			# if the file is already uncompressed, then...
 			tar -xf "${TEMP%.*}" 2>>"$LOG"
 			;;
 	esac
 	echo -e "Detected:\n$(ls -tdpr -- * | grep '/'$)" >>"$LOG"
-	cd "$(ls -tdpr -- * | grep '/'$ | head -1)" 2>>"$LOG" || {		# change into the directory created by the uncompression above (source code directory)	https://unix.stackexchange.com/questions/136976/get-the-latest-directory-not-the-latest-file
+	cd "$(ls -tdpr -- * | grep '/'$ | head -1)" 2>>"$LOG" || {				# change into the directory created by the uncompression above (source code directory)	https://unix.stackexchange.com/questions/136976/get-the-latest-directory-not-the-latest-file
 		echo "Calling: cd \"$(ls -tdr -- * | grep '/'$ | head -1)\"" >>"$LOG"
 		echo "ERROR: The source code directory could not be entered." >>"$LOG"
 		stop failed
 	}
 	# NOTE: we are now in the correct directory to perform all the following actions
 
-elif [ "$CODE" ]; then								# if we have a CODE value, then we need to change into that directory before we continue!
+elif [ "$CODE" ]; then										# if we have a CODE value, then we need to change into that directory before we continue!
 	echo -e "\nEntering source code directory..." | tee -a "$LOG"
 
 	TEMP="$(ls -1pd -- * | grep ^"${CODE#*|}" | grep '/'$ | head -1)"
@@ -664,13 +717,13 @@ elif [ "$CODE" ]; then								# if we have a CODE value, then we need to change 
 		echo "ERROR: The source code directory could not be found." >>"$LOG"
 		stop failed
 	}
-	cd "$TEMP" 2>>"$LOG" || {						# change into the directory that matches the unique CODE value
+	cd "$TEMP" 2>>"$LOG" || {								# change into the directory that matches the unique CODE value
 		echo "Calling: cd \"$TEMP\"" >>"$LOG"
 		echo "ERROR: The source code directory could not be entered." >>"$LOG"
 		stop failed
 	}
 fi
-DIR_CODE="$(pwd)"								# set the variable to the location of the source code
+DIR_CODE="$(pwd)"										# set the variable to the location of the source code
 
 if [ "$TYPE" = 'autoconf' ] && [ ! -e 'configure.ac' ]; then
 	echo "ERROR: It does not appear that builder was called from within the source code directory." >>"$LOG"
@@ -678,7 +731,7 @@ if [ "$TYPE" = 'autoconf' ] && [ ! -e 'configure.ac' ]; then
 elif [ "$TYPE" = 'autogen' ] && [ ! -e 'autogen.sh' ]; then
 	echo "ERROR: It does not appear that builder was called from within the source code directory." >>"$LOG"
 	stop failed
-elif [ "$TYPE" = 'bootstrap' ] && [ ! -e 'CMakeLists.txt' ]; then		# this is just a wrapper for the 'cmake' build system
+elif [ "$TYPE" = 'bootstrap' ] && [ ! -e 'CMakeLists.txt' ]; then				# this is just a wrapper for the 'cmake' build system
 	echo "ERROR: It does not appear that builder was called from within the source code directory." >>"$LOG"
 	stop failed
 elif [ "$TYPE" = 'cmake' ] && [ ! -e 'CMakeLists.txt' ]; then
@@ -831,7 +884,7 @@ elif [ "$TYPE" = 'scons' ]; then
 	echo "scons $FLAG_CONF >>\"$LOG\" 2>&1 || exit 1" >> "${DIR_TEMP}/${NAME}.build"
 fi
 
-[ ! "$PASS" ] && [ -x "${DIR_MAKE}/post.configure" ] && {		# execute any existing post-configure script (for single-pass; multi-pass is next block)
+[ ! "$PASS" ] && [ -x "${DIR_MAKE}/post.configure" ] && {	# execute any existing post-configure script (for single-pass; multi-pass is next block)
 	echo "echo -e \"   Executing the 'post.configure' script...\" | tee -a \"$LOG\"" >> "${DIR_TEMP}/${NAME}.build"
 	echo "${DIR_MAKE}/post.configure >>\"$LOG\" 2>&1 || exit 1" >> "${DIR_TEMP}/${NAME}.build"
 	echo "echo -e \"   Proceeding with next steps of compile...\" | tee -a \"$LOG\"" >> "${DIR_TEMP}/${NAME}.build"
@@ -876,181 +929,194 @@ done
 	"${DIR_MAKE}/post.compile.${PASS}" 2>>"$LOG" || stop failed
 }
 
-if [ "$SORT" ] || [ ! "$PASS" ]; then								# if we were instructed to sort on this pass -OR- there is only one pass, then...
+
+
+
+# OPTIONALLY PACKAGE SOFTWARE
+
+if [ ! "$NOPK" ]; then
+	# PRE-PACKAGE SORTING
+
+	if [ "$SORT" ] || [ ! "$PASS" ]; then							# if we were instructed to sort on this pass -OR- there is only one pass, then...
+		cd "${DIR_DUMP}" || {								# change into the temp packaging directory
+			echo "Calling: cd \"$DIR_DUMP\"" >>"$LOG"
+			echo "ERROR: The staging location directory (DIR_DUMP) could not be entered." >>"$LOG"
+			stop failed
+		}
+
+		# generate the sort script for the 'find' calls below
+		echo '#!/bin/sh' > "${DIR_TEMP}/${NAME}.sort"
+		echo 'TEMP="${2#*/}"' >> "${DIR_TEMP}/${NAME}.sort"				# strip the first directory (source) of the path from the variable value
+		echo "cd \"$NAME\"" >> "${DIR_TEMP}/${NAME}.sort"				# cd into the parent directory of the source so it does not get copied as well
+		echo 'rsync -a -R --devices --specials --remove-source-files "${TEMP}" "../$1"' >> "${DIR_TEMP}/${NAME}.sort"
+		chmod 775 "${DIR_TEMP}/${NAME}.sort"
+
+		# store the package names that need to be processed (either NAME or directory names)
+		[ ! "$DIRS" ] && [ ! "$TRIM" ] && NAMES="$NAME"					# if we are not packaging all the directories found in DIR_DUMP -AND- no trimming should be applied, then just store the name of the requested package
+		[ ! "$DIRS" ] && [ "$TRIM" ] && {						# same as above, but with trimming any portion of the name along with the actual renaming of the directory to match
+			NAMES="$(echo "$NAME" | sed "s/${TRIM}//")"
+			mv "$NAME" "$NAMES" 2>>"$LOG"
+		}
+		[ "$DIRS" ] && NAMES="$(ls -1 "$DIR_DUMP")"					# otherwise, we are so store all the names of the directories before we create the .bin, .dev, .drv, etc related directories
+
+		echo -e "\nSeparating into various packages..." | tee -a "$LOG"
+		for DIR in $NAMES; do
+			# strip the debug symbols from the just-compiled software		  https://superuser.com/questions/236601/how-do-i-execute-multiple-commands-when-using-find
+# UPDATED 2017/08/30 - to remove erroneous errors in the logs
+#			find . \( -not -type d -a -not -name \*.la -a -not -name \*.a \) -executable -exec /bin/sh -c 'file -b --mime-type {} | grep -q application && strip --strip-unneeded {}' \;
+			find . -type f -executable \( -not -name \*.la -a -not -name \*.a \) -exec /bin/sh -c 'file -b --mime-type {} | grep -q application && strip --strip-unneeded {}' \;
+
+			# create all the directories to split the package contents into
+			[ ! -d "${DIR}.dev" ] && mkdir "${DIR}.dev" 2>>"$LOG"
+			[ ! -d "${DIR}.doc" ] && mkdir "${DIR}.doc" 2>>"$LOG"
+			[ ! -d "${DIR}.drv" ] && mkdir "${DIR}.drv" 2>>"$LOG"
+			[ ! -d "${DIR}.gir" ] && mkdir "${DIR}.gir" 2>>"$LOG"
+			[ ! -d "${DIR}.lib" ] && mkdir "${DIR}.lib" 2>>"$LOG"
+			[ ! -d "${DIR}.loc" ] && mkdir "${DIR}.loc" 2>>"$LOG"
+
+			# split the package contents into bin, doc, dev, lib, ...
+			# https://unix.stackexchange.com/questions/154818/how-to-integrate-mv-command-after-find-command
+			# https://superuser.com/questions/596876/how-to-find-a-file-and-move-it-into-the-directory-it-was-found-in
+			# https://unix.stackexchange.com/questions/46322/how-can-i-recursively-delete-empty-directories-in-my-home-directory
+			# https://superuser.com/questions/236601/how-do-i-execute-multiple-commands-when-using-find
+			find "${DIR}${DIR_INST}/share/doc" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
+			find "${DIR}${DIR_INST}/share/info" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
+			find "${DIR}${DIR_INST}/share/man" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
+			find "${DIR}${DIR_INST}/share/gtk-doc" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
+			find "$DIR" -not -type d \( -name \*.c -o -name \*.c++ -o -name \*.h -o -name \*.hh -o -name \*.hpp -o -name \*.hxx -o -name \*.h++ -o -name \*.pc -o -name \*.la -o -name \*.a -o -name \*.m4 -o -name \*.vapi \) -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.dev\" '{}'" \; 2>/dev/null
+			find "${DIR}${DIR_INST}/lib/cmake" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.dev\" '{}'" \; 2>/dev/null		# NOTE: this was moved below the 'doc' since some packages (xslt) have html documentation ending in .c that doesn't need to go in the 'dev' package
+			find "$DIR" -not -type d -name Makefile.\* -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.dev\" '{}'" \; 2>/dev/null
+			find "$DIR" -type f -name \*.ko.gz -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.drv\" '{}'" \; 2>/dev/null
+			find "$DIR" -type f \( -name \*.typelib -o -name \*.gir \) -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.gir\" '{}'" \; 2>/dev/null
+			find "${DIR}${DIR_INST}/lib/" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.lib\" '{}'" \; 2>/dev/null
+			find "${DIR}${DIR_INST}/lib64/" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.lib\" '{}'" \; 2>/dev/null
+# LEFT OFF - do the libexec files also need to go in the 'lib' package?
+			find "$DIR" -type f -name \*.mo -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.loc\" '{}'" \; 2>/dev/null
+
+			# get rid of all empty directories from the 'bin' package
+			find "$DIR" -type d -empty -delete 2>/dev/null
+
+			# package each directory
+			[ -e "$DIR" ] && mv "$DIR" "${DIR}.bin"					# adjust the name so it can be included in the 'for' loop below		NOTE: test first incase the package only contains libs (which will erase this directory on the line above)
+		done
+
+		# NOTE: we should only apply ownership and permissions on the final pass!!!
+		if [ ! "$PASS" ] || [ $PASS -eq $(cat "${DIR_TEMP}/${NAME}.pass" | sed 's/|.*//') ]; then			# if '-p' wasn't passed -OR- it was -and- we are on the last pass, then...
+			echo -e "\nApplying ownership and permissions..." | tee -a "$LOG"	# NOTE: this has to come below the 'post' script incase that is what handles the 'install' portion when TYPE=custom (e.g. FXwm)
+			for DIR in $NAMES; do
+				for PACK in bin dev doc drv gir lib loc; do
+					[ ! -d "${DIR_DUMP}/${DIR}.${PACK}" ] && continue	# if a directory is missing then there's no reason to process something that doesn't exist!
+
+					cd "${DIR_DUMP}/${DIR}.${PACK}" || {			# change into the temp packaging directory
+						echo "Calling: cd \"${DIR_DUMP}/${DIR}.${PACK}\"" >>"$LOG"
+						echo "ERROR: The staging location directory (DIR_DUMP) could not be entered." >>"$LOG"
+						stop failed
+					}
+					find . \( -type f -exec chmod $PRM_FILES {} \; \) , \( -type d -exec chmod $PRM_DIRS {} \; \)		# update the permissions of all the package contents	https://stackoverflow.com/questions/3740152/how-do-i-set-chmod-for-a-folder-and-all-of-its-subfolders-and-files-in-linux-ubu
+					find ".${DIR_MARKERS}" -exec chmod $PRM_EXECS {} \; 2>/dev/null
+					find ".${DIR_SCRIPTS}" -exec chmod $PRM_EXECS {} \; 2>/dev/null
+					find ".${DIR_INST}/lib/" \( -not -type d -a -not -name \*.a \) -exec chmod $PRM_EXECS {} \; 2>/dev/null	# update the permissions of all the libraries
+					find ".${DIR_INST}/lib64/" \( -not -type d -a -not -name \*.a \) -exec chmod $PRM_EXECS {} \; 2>/dev/null
+					find ".${DIR_INST}/libexec/" -not -type d -exec chmod $PRM_EXECS {} \; 2>/dev/null			# update the permissions of lib executables		https://www.redhat.com/archives/rpm-list/2004-February/msg00027.html  https://unix.stackexchange.com/questions/74646/difference-between-lib-lib32-lib64-libx32-and-libexec
+#					chmod -R $PRM_DIRS bin sbin usr/bin usr/sbin usr/local/bin usr/local/sbin 2>/dev/null			# update these directory contents to be executable
+					chmod $PRM_EXECS bin/* sbin/* usr/bin/* usr/sbin/* usr/local/bin/* usr/local/sbin/* 2>/dev/null		# update these directory contents to be executable
+					sudo chown -hR ${OWN_USER}:${OWN_GROUP} ./* >>"$LOG" 2>&1						# update the ownership of all the package contents
+				done
+			done
+
+			[ $DEBUG -gt 0 ] && {
+				echo -n "   DEBUG: Can check the DIR_DUMP and DIR_TEMP directory contents... "
+				read
+			}
+		fi
+	fi
+
+
+
+
+	# CREATE EACH PACKAGE
+
 	cd "${DIR_DUMP}" || {									# change into the temp packaging directory
 		echo "Calling: cd \"$DIR_DUMP\"" >>"$LOG"
 		echo "ERROR: The staging location directory (DIR_DUMP) could not be entered." >>"$LOG"
 		stop failed
 	}
 
-	# generate the sort script for the 'find' calls below
-	echo '#!/bin/sh' > "${DIR_TEMP}/${NAME}.sort"
-	echo 'TEMP="${2#*/}"' >> "${DIR_TEMP}/${NAME}.sort"					# strip the first directory (source) of the path from the variable value
-	echo "cd \"$NAME\"" >> "${DIR_TEMP}/${NAME}.sort"					# cd into the parent directory of the source so it does not get copied as well
-	echo 'rsync -a -R --devices --specials --remove-source-files "${TEMP}" "../$1"' >> "${DIR_TEMP}/${NAME}.sort"
-	chmod 775 "${DIR_TEMP}/${NAME}.sort"
-
-	# store the package names that need to be processed (either NAME or directory names)
-	[ ! "$DIRS" ] && [ ! "$TRIM" ] && NAMES="$NAME"						# if we are not packaging all the directories found in DIR_DUMP -AND- no trimming should be applied, then just store the name of the requested package
-	[ ! "$DIRS" ] && [ "$TRIM" ] && {							# same as above, but with trimming any portion of the name along with the actual renaming of the directory to match
-		NAMES="$(echo "$NAME" | sed "s/${TRIM}//")"
-		mv "$NAME" "$NAMES" 2>>"$LOG"
+	[ ! "$PASS" ] && [ -x "${DIR_MAKE}/pre.package" ] && {					# execute any existing final script (for single-pass; multi-pass is next block)
+		echo -e "\nExecuting the 'pre.package' script..." | tee -a "$LOG"
+		"${DIR_MAKE}/pre.package" 2>>"$LOG" || stop failed
 	}
-	[ "$DIRS" ] && NAMES="$(ls -1 "$DIR_DUMP")"						# otherwise, we are so store all the names of the directories before we create the .bin, .dev, .drv, etc related directories
+	[ "$PASS" ] && [ -x "${DIR_MAKE}/pre.package.${PASS}" ] && {
+		echo -e "\nExecuting the 'pre.package' script..." | tee -a "$LOG"
+		"${DIR_MAKE}/pre.package.${PASS}" 2>>"$LOG" || stop failed
+	}
 
-	echo -e "\nSeparating into various packages..." | tee -a "$LOG"
-	for DIR in $NAMES; do
-		# strip the debug symbols from the just-compiled software			  https://superuser.com/questions/236601/how-do-i-execute-multiple-commands-when-using-find
-# UPDATED 2017/08/30 - to remove erroneous errors in the logs
-#		find . \( -not -type d -a -not -name \*.la -a -not -name \*.a \) -executable -exec /bin/sh -c 'file -b --mime-type {} | grep -q application && strip --strip-unneeded {}' \;
-		find . -type f -executable \( -not -name \*.la -a -not -name \*.a \) -exec /bin/sh -c 'file -b --mime-type {} | grep -q application && strip --strip-unneeded {}' \;
-
-		# create all the directories to split the package contents into
-		[ ! -d "${DIR}.dev" ] && mkdir "${DIR}.dev" 2>>"$LOG"
-		[ ! -d "${DIR}.doc" ] && mkdir "${DIR}.doc" 2>>"$LOG"
-		[ ! -d "${DIR}.drv" ] && mkdir "${DIR}.drv" 2>>"$LOG"
-		[ ! -d "${DIR}.gir" ] && mkdir "${DIR}.gir" 2>>"$LOG"
-		[ ! -d "${DIR}.lib" ] && mkdir "${DIR}.lib" 2>>"$LOG"
-		[ ! -d "${DIR}.loc" ] && mkdir "${DIR}.loc" 2>>"$LOG"
-
-		# split the package contents into bin, doc, dev, lib, ...
-		# https://unix.stackexchange.com/questions/154818/how-to-integrate-mv-command-after-find-command
-		# https://superuser.com/questions/596876/how-to-find-a-file-and-move-it-into-the-directory-it-was-found-in
-		# https://unix.stackexchange.com/questions/46322/how-can-i-recursively-delete-empty-directories-in-my-home-directory
-		# https://superuser.com/questions/236601/how-do-i-execute-multiple-commands-when-using-find
-		find "${DIR}${DIR_INST}/share/doc" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
-		find "${DIR}${DIR_INST}/share/info" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
-		find "${DIR}${DIR_INST}/share/man" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
-		find "${DIR}${DIR_INST}/share/gtk-doc" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.doc\" '{}'" \; 2>/dev/null
-		find "$DIR" -not -type d \( -name \*.c -o -name \*.c++ -o -name \*.h -o -name \*.hh -o -name \*.hpp -o -name \*.hxx -o -name \*.h++ -o -name \*.pc -o -name \*.la -o -name \*.a -o -name \*.m4 -o -name \*.vapi \) -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.dev\" '{}'" \; 2>/dev/null
-		find "${DIR}${DIR_INST}/lib/cmake" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.dev\" '{}'" \; 2>/dev/null		# NOTE: this was moved below the 'doc' since some packages (xslt) have html documentation ending in .c that doesn't need to go in the 'dev' package
-		find "$DIR" -not -type d -name Makefile.\* -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.dev\" '{}'" \; 2>/dev/null
-		find "$DIR" -type f -name \*.ko.gz -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.drv\" '{}'" \; 2>/dev/null
-		find "$DIR" -type f \( -name \*.typelib -o -name \*.gir \) -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.gir\" '{}'" \; 2>/dev/null
-		find "${DIR}${DIR_INST}/lib/" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.lib\" '{}'" \; 2>/dev/null
-		find "${DIR}${DIR_INST}/lib64/" -not -type d -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.lib\" '{}'" \; 2>/dev/null
-# LEFT OFF - do the libexec files also need to go in the 'lib' package?
-		find "$DIR" -type f -name \*.mo -exec /bin/sh -c "\"${DIR_TEMP}/${NAME}.sort\" \"${DIR}.loc\" '{}'" \; 2>/dev/null
-
-		# get rid of all empty directories from the 'bin' package
-		find "$DIR" -type d -empty -delete 2>/dev/null
-
-		# package each directory
-		[ -e "$DIR" ] && mv "$DIR" "${DIR}.bin"								# adjust the name so it can be included in the 'for' loop below		NOTE: test first incase the package only contains libs (which will erase this directory on the line above)
-	done
-
-	# NOTE: we should only apply ownership and permissions on the final pass!!!
-	if [ ! "$PASS" ] || [ $PASS -eq $(cat "${DIR_TEMP}/${NAME}.pass" | sed 's/|.*//') ]; then		# if '-p' wasn't passed -OR- it was -and- we are on the last pass, then...
-		echo -e "\nApplying ownership and permissions..." | tee -a "$LOG"				# NOTE: this has to come below the 'post' script incase that is what handles the 'install' portion when TYPE=custom (e.g. FXwm)
+	if [ ! "$SKIP" ] || ( [ "$SKIP" ] && [ $PASS -eq $(cat "${DIR_TEMP}/${NAME}.pass" | sed 's/|.*//') ] ); then		# if '-s' wasn't passed -OR- it was -and- we are on the last pass, then...
+		# store the package names that need to be processed (either NAME or directory names)	  NOTE: this has to be performed again incase additional directories were added/removed via a 'pre.package' script
+		[ ! "$DIRS" ] && [ ! "$TRIM" ] && NAMES="$NAME"					# if we are not packaging all the directories found in DIR_DUMP -AND- no trimming should be applied, then just store the name of the requested package
+		[ ! "$DIRS" ] && [ "$TRIM" ] && {						# same as above, but with trimming any portion of the name along with the actual renaming of the directory to match
+			NAMES="$(echo "$NAME" | sed "s/${TRIM}//")"
+			eval $SUDO mv "$NAME" "$NAMES" 2>>"$LOG"
+		}
+		[ "$DIRS" ] && NAMES="$(ls -1 "$DIR_DUMP" | sed 's/\.[^\.]*$//' | sort -u)"	# otherwise, we are so store all the names of the directories before we create the .bin, .dev, .drv, etc related directories
+												# NOTE: list all contents | non-greedy sed to remove extension (e.g. .bin) | sort to remove duplicates
+		echo -e "\nCreating the various packages..." | tee -a "$LOG"
 		for DIR in $NAMES; do
 			for PACK in bin dev doc drv gir lib loc; do
-				[ ! -d "${DIR_DUMP}/${DIR}.${PACK}" ] && continue				# if a directory is missing then there's no reason to process something that doesn't exist!
+				[ ! -d "${DIR}.${PACK}" ] && continue				# if a 'pre/post' script created directories manually, then some may be missing so no reason to process something that doesn't exist!
 
-				cd "${DIR_DUMP}/${DIR}.${PACK}" || {						# change into the temp packaging directory
-					echo "Calling: cd \"${DIR_DUMP}/${DIR}.${PACK}\"" >>"$LOG"
-					echo "ERROR: The staging location directory (DIR_DUMP) could not be entered." >>"$LOG"
-					stop failed
-				}
-				find . \( -type f -exec chmod $PRM_FILES {} \; \) , \( -type d -exec chmod $PRM_DIRS {} \; \)	# update the permissions of all the package contents	https://stackoverflow.com/questions/3740152/how-do-i-set-chmod-for-a-folder-and-all-of-its-subfolders-and-files-in-linux-ubu
-				find ".${DIR_MARKERS}" -exec chmod $PRM_EXECS {} \; 2>/dev/null
-				find ".${DIR_SCRIPTS}" -exec chmod $PRM_EXECS {} \; 2>/dev/null
-				find ".${DIR_INST}/lib/" \( -not -type d -a -not -name \*.a \) -exec chmod $PRM_EXECS {} \; 2>/dev/null		# update the permissions of all the libraries
-				find ".${DIR_INST}/lib64/" \( -not -type d -a -not -name \*.a \) -exec chmod $PRM_EXECS {} \; 2>/dev/null
-				find ".${DIR_INST}/libexec/" -not -type d -exec chmod $PRM_EXECS {} \; 2>/dev/null		# update the permissions of lib executables		https://www.redhat.com/archives/rpm-list/2004-February/msg00027.html  https://unix.stackexchange.com/questions/74646/difference-between-lib-lib32-lib64-libx32-and-libexec
-#				chmod -R $PRM_DIRS bin sbin usr/bin usr/sbin usr/local/bin usr/local/sbin 2>/dev/null		# update these directory contents to be executable
-				chmod $PRM_EXECS bin/* sbin/* usr/bin/* usr/sbin/* usr/local/bin/* usr/local/sbin/* 2>/dev/null	# update these directory contents to be executable
-				sudo chown -hR ${OWN_USER}:${OWN_GROUP} ./* >>"$LOG" 2>&1					# update the ownership of all the package contents
+				eval TMP_DEPS="$EXT_DEPS"					# update these values if variables were included in their name
+				eval TMP_HASH="$EXT_HASH"
+				eval TMP_INFO="$EXT_INFO"
+				eval TMP_LIST="$EXT_LIST"
+				eval TMP_SOFT="$EXT_SOFT"
+
+				eval URL_TEMP="${URL_INFO//NAME/DIR}"
+
+				[ $DEBUG -gt 0 ] && echo "   DEBUG (Pak Info): $DIR $PACK, ${DIR}${TMP_SOFT}"
+				[ $DEBUG -gt 0 ] && echo "   DEBUG (URL Info): $URL_TEMP"
+
+				[ "$(ls -1 "${DIR}.${PACK}" | head -1)" = '' ] && continue	# if there are no contents for the iterated package, then no reason to execute the below segment
+				echo "   ${DIR} [${PACK}]"
+				echo -e "\n\n   ----- ${DIR} ${PACK} -----\n\n" >>"$LOG"
+
+				mksquashfs "${DIR}.${PACK}" "${DIR}${TMP_SOFT}" >>"$LOG" 2>&1					# create the software package
+				find "${DIR}.${PACK}" -not -type d | sed "s:^${DIR}.${PACK}/::" > "${DIR}${TMP_LIST}"		# create the manifest list
+				md5sum "${DIR}${TMP_SOFT}" > "${DIR}${TMP_HASH}"						# create the md5 checksum hash
+				case "$PACK" in											# create the dependency list
+					'bin') [ "$DEP_EXEC_BIN" ] && echo -e "$DEP_EXEC_BIN" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+					'dev') [ "$DEP_EXEC_DEV" ] && echo -e "$DEP_EXEC_DEV" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+					'doc') [ "$DEP_EXEC_DOC" ] && echo -e "$DEP_EXEC_DOC" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+					'drv') [ "$DEP_EXEC_DRV" ] && echo -e "$DEP_EXEC_DRV" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+					'gir') [ "$DEP_EXEC_GIR" ] && echo -e "$DEP_EXEC_GIR" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+					'lib') [ "$DEP_EXEC_LIB" ] && echo -e "$DEP_EXEC_LIB" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+					'loc') [ "$DEP_EXEC_LOC" ] && echo -e "$DEP_EXEC_LOC" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
+				esac
+				[ ! "$URL_INFO" ] && echo "   WARN: Don't forget to create the .info file for the package!" | tee -a "$LOG"
+				[ "$URL_INFO" ] && eval wget "$URL_TEMP" -O "${DIR_REPO}/${DIR}${TMP_INFO}" 2>/dev/null		# create the information file
+
+				mv "${DIR}${TMP_SOFT}" "${DIR}${TMP_LIST}" "${DIR}${TMP_HASH}" "$DIR_REPO"			# copy the files into the repo
 			done
 		done
-
-		[ $DEBUG -gt 0 ] && {
-			echo -n "   DEBUG: Can check the DIR_DUMP and DIR_TEMP directory contents... "
-			read
-		}
+		sudo chown -hR ${USER} * >>"$LOG" 2>&1						# update the ownership of all the package contents to be the current user so we can delete it
 	fi
-fi
 
-
-
-
-# CREATE EACH PACKAGE
-
-cd "${DIR_DUMP}" || {										# change into the temp packaging directory
-	echo "Calling: cd \"$DIR_DUMP\"" >>"$LOG"
-	echo "ERROR: The staging location directory (DIR_DUMP) could not be entered." >>"$LOG"
-	stop failed
-}
-
-[ ! "$PASS" ] && [ -x "${DIR_MAKE}/pre.package" ] && {						# execute any existing final script (for single-pass; multi-pass is next block)
-	echo -e "\nExecuting the 'pre.package' script..." | tee -a "$LOG"
-	"${DIR_MAKE}/pre.package" 2>>"$LOG" || stop failed
-}
-[ "$PASS" ] && [ -x "${DIR_MAKE}/pre.package.${PASS}" ] && {
-	echo -e "\nExecuting the 'pre.package' script..." | tee -a "$LOG"
-	"${DIR_MAKE}/pre.package.${PASS}" 2>>"$LOG" || stop failed
-}
-
-if [ ! "$SKIP" ] || ( [ "$SKIP" ] && [ $PASS -eq $(cat "${DIR_TEMP}/${NAME}.pass" | sed 's/|.*//') ] ); then	# if '-s' wasn't passed -OR- it was -and- we are on the last pass, then...
-	# store the package names that need to be processed (either NAME or directory names)	  NOTE: this has to be performed again incase additional directories were added/removed via a 'pre.package' script
-	[ ! "$DIRS" ] && [ ! "$TRIM" ] && NAMES="$NAME"						# if we are not packaging all the directories found in DIR_DUMP -AND- no trimming should be applied, then just store the name of the requested package
-	[ ! "$DIRS" ] && [ "$TRIM" ] && {							# same as above, but with trimming any portion of the name along with the actual renaming of the directory to match
-		NAMES="$(echo "$NAME" | sed "s/${TRIM}//")"
-		eval $SUDO mv "$NAME" "$NAMES" 2>>"$LOG"
+	[ ! "$PASS" ] && [ -x "${DIR_MAKE}/post.package" ] && {					# execute any existing final script (for single-pass; multi-pass is next line)
+		echo -e "\nExecuting the 'post.package' script..." | tee -a "$LOG"
+		"${DIR_MAKE}/post.package" 2>>"$LOG" || stop failed
 	}
-	[ "$DIRS" ] && NAMES="$(ls -1 "$DIR_DUMP" | sed 's/\.[^\.]*$//' | sort -u)"		# otherwise, we are so store all the names of the directories before we create the .bin, .dev, .drv, etc related directories
-												# NOTE: list all contents | non-greedy sed to remove extension (e.g. .bin) | sort to remove duplicates
-	echo -e "\nCreating the various packages..." | tee -a "$LOG"
-	for DIR in $NAMES; do
-		for PACK in bin dev doc drv gir lib loc; do
-			[ ! -d "${DIR}.${PACK}" ] && continue					# if a 'pre/post' script created directories manually, then some may be missing so no reason to process something that doesn't exist!
-
-			eval TMP_DEPS="$EXT_DEPS"						# update these values if variables were included in their name
-			eval TMP_HASH="$EXT_HASH"
-			eval TMP_INFO="$EXT_INFO"
-			eval TMP_LIST="$EXT_LIST"
-			eval TMP_SOFT="$EXT_SOFT"
-
-			eval URL_TEMP="${URL_INFO//NAME/DIR}"
-
-			[ $DEBUG -gt 0 ] && echo "   DEBUG (Pak Info): $DIR $PACK, ${DIR}${TMP_SOFT}"
-			[ $DEBUG -gt 0 ] && echo "   DEBUG (URL Info): $URL_TEMP"
-
-			[ "$(ls -1 "${DIR}.${PACK}" | head -1)" = '' ] && continue		# if there are no contents for the iterated package, then no reason to execute the below segment
-			echo "   ${DIR} [${PACK}]"
-			echo -e "\n\n   ----- ${DIR} ${PACK} -----\n\n" >>"$LOG"
-
-			mksquashfs "${DIR}.${PACK}" "${DIR}${TMP_SOFT}" >>"$LOG" 2>&1				# create the software package
-			find "${DIR}.${PACK}" -not -type d | sed "s:^${DIR}.${PACK}/::" > "${DIR}${TMP_LIST}"	# create the manifest list
-			md5sum "${DIR}${TMP_SOFT}" > "${DIR}${TMP_HASH}"					# create the md5 checksum hash
-			case "$PACK" in										# create the dependency list
-				'bin') [ "$DEP_EXEC_BIN" ] && echo -e "$DEP_EXEC_BIN" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-				'dev') [ "$DEP_EXEC_DEV" ] && echo -e "$DEP_EXEC_DEV" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-				'doc') [ "$DEP_EXEC_DOC" ] && echo -e "$DEP_EXEC_DOC" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-				'drv') [ "$DEP_EXEC_DRV" ] && echo -e "$DEP_EXEC_DRV" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-				'gir') [ "$DEP_EXEC_GIR" ] && echo -e "$DEP_EXEC_GIR" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-				'lib') [ "$DEP_EXEC_LIB" ] && echo -e "$DEP_EXEC_LIB" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-				'loc') [ "$DEP_EXEC_LOC" ] && echo -e "$DEP_EXEC_LOC" | tr ' ' '\n' > "${DIR_REPO}/${DIR}${TMP_DEPS}" ;;
-			esac
-			[ ! "$URL_INFO" ] && echo "   WARN: Don't forget to create the .info file for the package!" | tee -a "$LOG"
-			[ "$URL_INFO" ] && eval wget "$URL_TEMP" -O "${DIR_REPO}/${DIR}${TMP_INFO}" 2>/dev/null	# create the information file
-
-			mv "${DIR}${TMP_SOFT}" "${DIR}${TMP_LIST}" "${DIR}${TMP_HASH}" "$DIR_REPO"		# copy the files into the repo
-		done
-	done
-	sudo chown -hR ${USER} * >>"$LOG" 2>&1							# update the ownership of all the package contents to be the current user so we can delete it
+	[ "$PASS" ] && [ -x "${DIR_MAKE}/post.package.${PASS}" ] && {
+		echo -e "\nExecuting the 'post.package' script..." | tee -a "$LOG"
+		"${DIR_MAKE}/post.package.${PASS}" 2>>"$LOG" || stop failed
+	}
 fi
 
-[ ! "$PASS" ] && [ -x "${DIR_MAKE}/post.package" ] && {						# execute any existing final script (for single-pass; multi-pass is next line)
-	echo -e "\nExecuting the 'post.package' script..." | tee -a "$LOG"
-	"${DIR_MAKE}/post.package" 2>>"$LOG" || stop failed
-}
-[ "$PASS" ] && [ -x "${DIR_MAKE}/post.package.${PASS}" ] && {
-	echo -e "\nExecuting the 'post.package' script..." | tee -a "$LOG"
-	"${DIR_MAKE}/post.package.${PASS}" 2>>"$LOG" || stop failed
-}
 
-# cleanup from the compilation
-if [ "$PASS" ] && ( [ -e "${DIR_CONF}/proper.${PASS}" ] || [ -e "${DIR_MAKE}/proper.${PASS}" ] ); then		# if doing multi-pass -AND- automatic cleanup is requested on this pass...
+
+
+# COMPILATION CLEANUP
+
+if [ "$PASS" ] && ( [ -e "${DIR_CONF}/proper.${PASS}" ] || [ -e "${DIR_MAKE}/proper.${PASS}" ] ); then				# if doing multi-pass -AND- automatic cleanup is requested on this pass...
 	if [ $PASS -eq $(cat "${DIR_TEMP}/${NAME}.pass" | sed 's/|.*//') ]; then		# if we are on the last pass, then...
 		PASS=''										#   update the value so the next section won't be triggered (since its tracker file will be deleted below!)
 		stop proper 0									#   cleanup whole environment
@@ -1076,10 +1142,18 @@ fi
 	echo -e "\nStarting the next pass..." | tee -a "$LOG"
 
 	TEMP='"$THIS" -n "$NAME" -a "$ARCH" -t "$TYPE"'
-	[ "$WGET" = 'private' ] && TEMP="$TEMP -D"
-	[ "$WGET" = 'public' ] && TEMP="$TEMP -S"
-	[ "$WGET" = 'local' ] && TEMP="$TEMP -L"
-	[ "$DIRS" ] && TEMP="$TEMP -d"
+# UPDATED 2025/10/15 - moved from -D to -C
+#	[ "$WGET" = 'private' ] && TEMP="$TEMP -D"
+	[ "$WGET" = 'private' ] && TEMP="$TEMP -C"
+# UPDATED 2025/10/15 - moved from -S to -c
+#	[ "$WGET" = 'public' ] && TEMP="$TEMP -S"
+	[ "$WGET" = 'public' ] && TEMP="$TEMP -c"
+# UPDATED 2025/10/15 - moved from -L to -d
+#	[ "$WGET" = 'local' ] && TEMP="$TEMP -L"
+	[ "$WGET" = 'local' ] && TEMP="$TEMP -d"
+# UPDATED 2025/10/15 - moved from -d to -D
+#	[ "$DIRS" ] && TEMP="$TEMP -d"
+	[ "$DIRS" ] && TEMP="$TEMP -D"
 	#[ "$PASS" ] && TEMP="$TEMP -p '$PASS'"							  NOTE: we do NOT pass this value here since it will be picked up automatically at the top of the script
 	[ "$PATCH" ] && TEMP="$TEMP -P"
 	[ "$SKIP" ] && TEMP="$TEMP -s"
@@ -1091,5 +1165,6 @@ fi
 	exit 0
 }
 
-echo -e "\nCongrats, the software has been packaged successfully!\n" | tee -a "$LOG"
+[ "$NOPK" ] && echo -e "\nCongrats, the software has been compiled successfully!\n" | tee -a "$LOG"
+[ ! "$NOPK" ] && echo -e "\nCongrats, the software has been packaged successfully!\n" | tee -a "$LOG"
 
