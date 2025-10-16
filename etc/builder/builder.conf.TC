@@ -73,7 +73,7 @@ SPM_PAK='tce-load -w $DEP_MAKE_PAK; tce-load -il $DEP_MAKE_PAK'
 SPM_UNL=''
 
 # The CPU architectures that you wish to compile for (comma separated)
-#CPU='i32,i64,r32'
+#CPU='i32,i64,r32,r64'
 
 # The log file for compile output (contains both stdout and stderr)
 #LOG='/var/log/builder.log'
@@ -100,6 +100,11 @@ SUDO=TRUE
 #elif [ "$2" = 'r32' ]; then
 #	EXPORTS="export CFLAGS='-march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -Os -pipe'
 #		export CXXFLAGS='-march=armv6zk -mtune=arm1176jzf-s -mfpu=vfp -Os -pipe'
+#		export LDFLAGS='-Wl,-O1'
+#		export PKG_CONFIG_PATH='/usr/local/lib/pkgconfig:/usr/lib/pkgconfig'"
+#elif [ "$2" = 'r64' ]; then
+#	EXPORTS="export CFLAGS='-march=armv8-a+crc -mtune=cortex-a53 -Os -pipe'
+#		export CXXFLAGS='-march=armv8-a+crc -mtune=cortex-a53 -Os -pipe'
 #		export LDFLAGS='-Wl,-O1'
 #		export PKG_CONFIG_PATH='/usr/local/lib/pkgconfig:/usr/lib/pkgconfig'"
 #fi
