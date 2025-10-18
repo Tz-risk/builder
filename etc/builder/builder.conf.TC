@@ -38,6 +38,17 @@
 #DIR_XTRA="${DIR_CONF}/${NAME}/extras"
 
 
+# directory locations used with 'DIR_INST' (equilent to PREFIX when 'configuring')
+#DIR_BIN="${DIR_INST}/bin"
+#DIR_ETC="${DIR_INST}/etc"
+#DIR_LIB="${DIR_INST}/lib"
+#DIR_SBIN="${DIR_INST}/sbin"
+#DIR_SHARE="${DIR_INST}/share"
+#DIR_VAR="/var"
+#DIR_MARKERS="${DIR_INST}/tce.installed"
+#DIR_SCRIPTS="${DIR_INST}/etc/init.d"
+
+
 # Compile-time deps list for all projects (e.g. compiletc,mksquashfs-tools,...)
 DEP_MAKE_ALL='compiletc.tcz squashfs-tools.tcz rsync.tcz findutils.tcz'
 
@@ -66,10 +77,14 @@ PRM_EXECS='755'
 URL_CODE='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/src/${NAME}/${NAME}${EXT_CODE}'
 URL_INFO='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/${NAME}${EXT_INFO}'
 
-# The software package manager command to install compile-time dependencies
+# The software package manager commands to...
+# ...install compile-time dependencies for the overall compiling environment
 SPM_ALL='tce-load -w $DEP_MAKE_ALL; tce-load -il $DEP_MAKE_ALL'
+# ...install compile-time dependencies for those that are package specific
 SPM_PAK='tce-load -w $DEP_MAKE_PAK; tce-load -il $DEP_MAKE_PAK'
-# ...and to unload them (to keep the environment clean)
+# ...create packages from compiled software
+SPM_MAK='mksquashfs "${DIR}.${PACK}" "${DIR}${TMP_SOFT}" && find "${DIR}.${PACK}" -not -type d | sed "s:^${DIR}.${PACK}/::" >"${DIR}${TMP_LIST}" && md5sum "${DIR}${TMP_SOFT}" >"${DIR}${TMP_HASH}"'
+# ...unload them (to keep the environment clean)
 SPM_UNL=''
 
 # The CPU architectures that you wish to compile for (comma separated)

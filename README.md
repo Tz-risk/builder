@@ -99,6 +99,46 @@
 
 
 
+# [RECENT UPDATES]
+
+	2025/10/15
+	- Updated the --help output to match current switches and added sections:
+	  Build Software Steps
+	  Profile Creation Steps
+	  Profile Contents Key
+	- Added the -E action
+	- Started the -T action
+	- Rearranged several switches:
+	  -D to -C
+	  -d to -D
+	  -L to -d
+	  -S to -c
+
+	2025/10/16
+	- Combined -c, -C, -d to be -c "dev|dir|repo"
+	- Reverted -D to -d
+	- Moved -S switch to -C action
+	- Changed -U to -u
+	- Added the -C action (and modifying packaging code to implement)
+	- Added the -R action
+	- Completed the -T action
+	- Added r64 CPU arch type
+	- Started work to allow creation of just one package instead of multiple
+
+	2025/10/17
+	- Removed -n and made it the last parameter
+	- Added the -I action
+	- Moved -p to -N
+	- Moved -s to -F
+	- Reversed the action and switch parameter case to match pax
+	- Implemented SPM_MAK variable for generic package manager creation
+	- Expanded the sample builder.conf.TC file
+	- Migrated existing package code to 'pax' (since it was distro specific)
+	- Completed work to allow single package creation
+
+
+
+
 # [FUTURE DEV TIMELINE]
 
 	Since we are working with several many projects (13 on github alone),
