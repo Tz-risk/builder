@@ -74,7 +74,7 @@ PRM_EXECS='755'
 
 # The URL's that can be used to obtain the source code and package information
 # NOTE: a blank value disables
-URL_CODE='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/src/${NAME}/${NAME}${EXT_CODE}'
+URL_REPO='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/src/${NAME}/${NAME}${EXT_CODE}'
 URL_INFO='$(cat /opt/tcemirror)/$(version | cut -d '.' -f 1).x/$(uname -m)/tcz/${NAME}${EXT_INFO}'
 
 # The software package manager commands to...

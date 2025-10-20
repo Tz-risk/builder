@@ -136,6 +136,16 @@
 	- Migrated existing package code to 'pax' (since it was distro specific)
 	- Completed work to allow single package creation
 
+	2025/10/20
+	- Implemented '-C info' with it using URL_INFO
+	- Updated '-C dev' to use URL_CODE instead of URL_INFO
+	- Implemented URL_REPO to be used with '-C repo'
+	- Cleaned up the CODE variable usage
+	- Removed calls to DIR_CODE as it was not being used
+	- Updated the '--help' output Notes section
+	- Updated the builder.conf.TC to use URL_REPO instead of URL_CODE
+	- Updated the NOTES file to better explain "Building with builder"
+
 
 
 

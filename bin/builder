@@ -2,7 +2,7 @@
 # builder	a small script to build software for Linux distros
 #
 # Created	2017/07/08 by Dave Henderson (support@cliquesoft.org)
-# Updated	2025/10/17 by Dave Henderson (support@cliquesoft.org)
+# Updated	2025/10/20 by Dave Henderson (support@cliquesoft.org)
 #
 # License	2-clause BSD License
 #		https://en.wikipedia.org/wiki/BSD_licenses#2-clause_license_.28.22Simplified_BSD_License.22_or_.22FreeBSD_License.22.29
@@ -37,7 +37,7 @@ export DIR_INCL='${DIR_CONF}/${NAME}/include'			# this will store the directory 
 export DIR_INST=''						# the directory where the package contents will reside in the running system; blank=root directory
 export DIR_MAKE='${DIR_CONF}/${NAME}'				# this will store individual compile parameters for each package
 export DIR_MODS='${DIR_CONF}/${NAME}/patches'			# this will store any modifications/patches that need to be made to the source code before compiling occurs
-export DIR_REPO='/tmp/repo'					# the location that the packaged software will be stored - the local software repository
+export DIR_REPO='/tmp/repo'					# the location that the packaged software will be stored and source code is found (when using '-C dir') - the local software repository
 export DIR_TEMP='/tmp/builder'					# the temporary location to store any information and files needed by this script
 export DIR_XTRA='${DIR_CONF}/${NAME}/extras'			# this will store any files that are used to compile (e.g. httpd.conf for php); useful when DIRS=TRUE
 
@@ -52,12 +52,12 @@ export DIR_SCRIPTS="${DIR_INST}/etc/init.d"
 
 export DEP_MAKE_ALL='compiletc squashfs_tools rsync find_utils'	# compile-time deps list for all projects (e.g. compiletc, mksquashfs-tools, ...)
 
-export EXT_CODE='.${PACK}.all.code'				# the file extensions for the various packages created by this script	NOTE: the '.code' is just a .tgz file; the '.soft' is a mksquashfs file; remaining are text files
-export EXT_DEPS='.${PACK}.${ARCH}.deps'
-export EXT_HASH='.${PACK}.${ARCH}.hash'
-export EXT_INFO='.${PACK}.${ARCH}.info'
-export EXT_LIST='.${PACK}.${ARCH}.list'
-export EXT_SOFT='.${PACK}.${ARCH}.soft'
+export EXT_CODE='.${PACK}.all.code'				# [tgz file] package source code
+export EXT_DEPS='.${PACK}.${ARCH}.deps'				# [text file] package dependency list
+export EXT_HASH='.${PACK}.${ARCH}.hash'				# [text file] package validation hash
+export EXT_INFO='.${PACK}.${ARCH}.info'				# [text file] package information
+export EXT_LIST='.${PACK}.${ARCH}.list'				# [text file] package manifest list
+export EXT_SOFT='.${PACK}.${ARCH}.soft'				# [mksquashfs file] packaged compiled software
 
 export OWN_USER='root'						# the ownership to apply to files of the package
 export OWN_GROUP='staff'
@@ -66,8 +66,9 @@ export PRM_DIRS='775'						# the permissions to apply to directories of the pack
 export PRM_FILES='664'						# the permissions to apply to all files of the package
 export PRM_EXECS='755'						# the permissions to apply to all executables in /bin, /sbin, etc and also the libraries
 
-export URL_CODE='http://repo.cliquesoft.org/vanilla/1.1/${NAME}/${NAME}${EXT_CODE}'		# the URL that can be used to obtain the location of the source file to download and build
-export URL_INFO='http://repo.cliquesoft.org/vanilla/1.1/${NAME}/${NAME}${EXT_INFO}'		# same as above, but to obtain the package information for the .info file
+export URL_CODE=''						# the developer URL used to obtain the package source code (set in a config file)
+export URL_REPO='http://repo.cliquesoft.org/vanilla/1.1/${NAME}/${NAME}${EXT_CODE}'		# the distro repo URL used to obtain the package source code
+export URL_INFO='http://repo.cliquesoft.org/vanilla/1.1/${NAME}/${NAME}${EXT_INFO}'		# the .info file URL used to obtain the package source code
 
 export SPM_ALL='sudo pax -i $DEP_MAKE_ALL'			# the software package manager command to install compile-time dependencies (overall)
 export SPM_PAK='sudo pax -i $DEP_MAKE_PAK'			# the software package manager command to install compile-time dependencies (package specific)
@@ -113,11 +114,14 @@ CLEAN=0								# indicates that the 'make clean' step is necessary (mostly for m
 CONF=1								# indicates that the 'configure' step needs to be made during compile
 PROP=0								# indicates that the 'make mrproper' step is necessary (mostly for multi-run compiles)
 TEST=0								# indicates that the 'make test' step is requested to be made during compile
-CODE=''								# the phrase that will uniquely identify the directory containing the source code for the pass (e.g. alsa-lib, alsa-utils); format: TYPE|PHRASE (e.g. lib|alsa-lib, bin|alsa-utils)
+# UPDATED 2025/10/20 - reworded to make more sense
+#CODE=''							# the phrase that will uniquely identify the directory containing the source code for the pass (e.g. alsa-lib, alsa-utils); format: TYPE|PHRASE (e.g. lib|alsa-lib, bin|alsa-utils)
+CODE=''								# when compiling multiple softwares with a single builder profile (e.g. alsa-lib, alsa-utils), this value uniquely identifies the package per pass (e.g. config.1 > CODE='alsa-lib'; config.2 > CODE='alsa-utils')
 
 COMPILE=''							# used when TYPE='custom'
 
-export DIR_CODE=''						# the location of the source code (this is set further below)
+# REMOVED 2025/10/20 - this is not being used
+#export DIR_CODE=''						# the location of the source code (this is set further below)
 
 CFG_BIN=""							# DIR_INST/bin	directory locations used with 'configure'
 CFG_DATA=""							# DIR_INST/usr/share
@@ -482,7 +486,7 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 #	echo "	-T	create a builder profile template"
 	echo "	-c	only compile the software, no packaging"				# this is so that end users can simply download source code and build locally without having to package anything
 	echo "	-e	create a package .info file template"
-	echo "	-i	install the builder profile"
+	echo "	-i	install the builder profile"						# installs the builder profile in /etc/builder so it can be used
 	echo "	-r	only re-package software instead of building"				# this will be useful if something in DIR_INCL gets updated (e.g. added a .desktop file)
 	echo "	-t	create a builder profile template"
 	echo
@@ -515,8 +519,9 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 #	echo "	-S	package all contents in a single package - do NOT separate"
 #	echo "	-t	the compile type to use:"
 	echo "	-A	the CPU architecture to build: ${CPU},all (default)"
-# LEFT OFF - use URL_CODE for 'dev' value, add an 'info' value below and use URL_INFO, create a URL_REPO for 'repo' value below
-	echo "	-C	obtain source code from: dev(eloper)|dir(ectory)|(distro)repo"					# this is based on the 'URL' and 'filename' values in the .info file	WARN: this requires an existing .info file with certain values!
+# UPDATED 2025/10/20 - use URL_CODE for 'dev' value, add an 'info' value below and use URL_INFO, create a URL_REPO for 'repo' value below
+	echo "	-C	obtain source code from:"
+	echo "			dev(eloper)|dir(ectory)|(distro)repo|info(file)"		# this is based on the 'URL' and 'filename' values in the .info file	WARN: this requires an existing .info file with certain values!
 	echo "	-D	package using directories in DIR_DUMP instead of NAME value"		# this is useful if a pre/post script creates multiple packages from a single compile (e.g. php, php-cli, php-fpm, etc)
 # UPDATED 2025/10/17 - mv -s to -F
 	echo "	-F	skips packaging until final pass"
@@ -616,8 +621,9 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 	echo "	      (also apply to the 'include' directory - include.1/DIR_ETC)"
 	echo
 	echo "  Notes:"
-	echo "	- Start this program from within the source code directory"
-	echo "	  (unless multiple packages are built simultaneously - see NOTES)"
+# UPDATED 2025/10/20 - made this more clear)
+#	echo "	- Start this program from within the source code directory"
+#	echo "	  (unless multiple packages are built simultaneously - see NOTES)"
 # UPDATED 2025/10/15 - moved from -D to -C
 #	echo "	- If the '-D' switch was passed the above note can be ignored"
 # UPDATED 2025/10/16 - combined -c, -C, -d to be -c "dev|dir|repo"
@@ -625,14 +631,22 @@ if [ "$1" = '' ] || [ "$1" = '--help' ]; then
 # UPDATED 2025/10/17 - moved to lowercase to match pax
 #	echo "	- If '-c repo' was passed, the above note can be ignored"
 #	echo "	- The '-s' switch requires a '-p' value"
-	echo "	- If '-C repo' was passed, the above note can be ignored"
-	echo "	- The '-F' switch requires a '-P' value"
+# UPDATED 2025/10/20 - made this more clear)
+#	echo "	- If '-C repo' was passed, the above note can be ignored"
+	echo "	- Unless the '-C' switch was passed, with an accompanying config file"
+	echo "	  CODE value, you must start this program from within the source code"
+	echo "	  directory where the 'configure', 'autogen', etc scripts reside."
+	echo "	- The '-C dir' looks in \"${DIR_REPO}\" for source code."
 # REVERTED 2025/10/17 - moved from -D to -d
 # REVERTED 2025/10/16 - moved from -D to -d
 # UPDATED 2025/10/17 - moved to lowercase to match pax
 #	echo "	- The '-d' switch is useful for making multiple packages from"
 	echo "	- The '-D' switch is useful for making multiple packages from"
 	echo "	  a single compile (e.g. php, php-cli, php-fpm, ...)"
+# REMOVED 2025/10/20 - this is already specified when the command is run without the accompanying switch
+#	echo "	- The '-F' switch requires a '-P' value"
+	echo "	- It is possible to compile multiple softwares with a single"
+	echo "	  builder profile (e.g. alsa-libs, alsa-utils) - see NOTES"
 	echo
 	exit 0
 elif [ "$1" = '--version' ]; then
@@ -841,7 +855,7 @@ else
 		echo "- Place appropriate files in the appropriate directories." >>"README.txt"
 		echo "- Empty directories can be deleted if desired." >>"README.txt"
 		echo "- This file can be deleted." >>"README.txt"
-		echo " " >>"README.txt"
+		echo >>"README.txt"
 		echo "Directory Installation Locations:" >>"README.txt"
 		echo "DIR_BIN		LSB: /bin" >>"README.txt"
 		echo "DIR_ETC		LSB: /etc" >>"README.txt"
@@ -851,7 +865,7 @@ else
 		echo "DIR_VAR		LSB: /var" >>"README.txt"
 		echo "DIR_MARKERS	LSB: -			XiniX: /var/cache/Software/scripts" >>"README.txt"
 		echo "DIR_SCRIPTS	LSB: /etc/init.d	XiniX: /var/cache/Software/services" >>"README.txt"
-		echo " " >>"README.txt"
+		echo >>"README.txt"
 		echo "Compile 'configure' Directory Locations:" >>"README.txt"
 		echo "CFG_BIN		LSB: DIR_INST/bin" >>"README.txt"
 		echo "CFG_DATA		LSB: DIR_INST/share	XiniX: DIR_INST/var/share" >>"README.txt"
@@ -873,7 +887,7 @@ else
 		echo "CFG_SHAREDSTATE	LSB: DIR_INST/com	XiniX: DIR_INST/var" >>"README.txt"
 		echo "CFG_SYSCONFIG	LSB: DIR_INST/etc" >>"README.txt"
 		echo "CFG_MISC		" >>"README.txt"
-		echo " " >>"README.txt"
+		echo >>"README.txt"
 		echo "The CFG_MISC is a builder extra variable that can be used per project, but will" >>"README.txt"
 		echo "need its associated switch. So, for example, mplayer has a non-standard switch" >>"README.txt"
 		echo "to place its codecs. Simply enter \"--codec-dir='/whatever/dir'\" for this" >>"README.txt"
@@ -882,19 +896,40 @@ else
 		cd ..
 		touch proper
 
-		echo "CHECK=0		# indicates that 'make check' is executed" >config
-		echo "CLEAN=1		# indicates that 'make clean' is executed (e.g. multi-pass compiles); NOTE: a '2' value performs a 'distclean'" >>config
-		echo "CONF=1		# indicates that 'configure' is executed" >>config
-		echo "PROP=0		# indicates that 'make mrproper' is executed (e.g. multi-pass compiles)" >>config
-		echo "SORT=TRUE		# indicates that the package contents needs sorting on this pass" >>config
-		echo "TEST=0		# indicates that 'make test' is executed" >>config
-# LEFT OFF - finish comments for the below variable
-CODE=''								# the phrase that will uniquely identify the directory containing the source code for the pass (e.g. alsa-lib, alsa-utils); format: TYPE|PHRASE (e.g. lib|alsa-lib, bin|alsa-utils)
-		echo "CODE='bin|ifplugd-'" >>config
-		echo " " >>config
-		echo "COMPILE=''	# if the compile type is 'custom', you need to specify all commands here" >>config
-		echo " " >>config
-		echo "# Uncomment any of the below directory installation locations you wish to modify:" >>config
+		echo "# Toggle the execution for any of these commands" >config
+		echo "# NOTE: when using multi-pass files (e.g. config.1, config.2), these can be used" >>config
+		echo "#       to define which pass any of these commands are executed depending on the" >>config
+		echo "#       value assigned in each config file" >>config
+		echo "CHECK=0		# make check" >>config
+		echo "CLEAN=1		# make clean; NOTE: a '2' value performs a 'make distclean'" >>config
+		echo "CONF=1		# configure" >>config
+		echo "PROP=0		# make mrproper" >>config
+		echo "TEST=0		# make test" >>config
+		echo "SORT=TRUE		# indicates the package contents need sorting (on this pass)" >>config
+		echo >>config
+		echo "# The URL to the developers source code used with this builder profile" >>config
+		echo "# NOTES:" >>config
+		echo "#     - if doing multi-pass, this needs to be in the first config file" >>config
+		echo "#     - this is optional but does allow a '-C dev' call" >>config
+		echo "URL_CODE=''" >>config
+		echo >>config
+# UPDATED 2025/10/20 - the first value was removed as it was not being utilized
+#		echo "# The below variable is optional and contains two values separated by a pipe" >>config
+#		echo "# The first value specifies the package type: all,bin,dev,doc,drv,gir,lib,loc" >>config
+#		echo "# The second specifies a unique name " >>config
+		echo "# The below variable is optional and should only be used when compiling more" >>config
+		echo "# than one software with a single builder profile. For example you can compile" >>config
+		echo "# both alsa-libs and alsa-utils with a single 'builder alsa' command if the" >>config
+		echo "# config.1 CODE value is 'alsa-libs' and config.2 CODE value is 'alsa-utils'." >>config
+		echo "# This value would uniquely identify which source code directory to use per pass" >>config
+		echo "CODE=''" >>config
+		echo >>config
+		echo "# If the compile type is 'custom', you need to specify all commands here" >>config
+		echo "# For example: gcc -O whatever" >>config
+		echo "# NOTE: if this contains variables, still surround them in single quotes!!!" >>config
+		echo "COMPILE=''" >>config
+		echo >>config
+		echo "# Uncomment any of the directory installation locations you wish to modify" >>config
 		echo "#DIR_BIN=\"${DIR_INST}/bin\"" >>config
 		echo "#DIR_ETC=\"${DIR_INST}/etc\"" >>config
 		echo "#DIR_LIB=\"${DIR_INST}/lib\"" >>config
@@ -903,8 +938,8 @@ CODE=''								# the phrase that will uniquely identify the directory containing
 		echo "#DIR_VAR=\"${DIR_INST}/var\"" >>config
 		echo "#DIR_MARKERS=\"${DIR_INST}/usr/local/tce.installed\"" >>config
 		echo "#DIR_SCRIPTS=\"${DIR_INST}/etc/init.d\"" >>config
-		echo " " >>config
-		echo "# Uncomment any of the below directory configuration locations you wish to modify:" >>config
+		echo >>config
+		echo "# Uncomment any of the directory configuration locations you wish to modify" >>config
 		echo "#CFG_BIN=\"${DIR_INST}/bin\"" >>config
 		echo "#CFG_DATA=\"${DIR_INST}/share\"" >>config
 		echo "#CFG_DATAROOT=\"${CFG_DATA}\"" >>config
@@ -924,8 +959,12 @@ CODE=''								# the phrase that will uniquely identify the directory containing
 		echo "#CFG_SBIN=\"${DIR_INST}/sbin\"" >>config
 		echo "#CFG_SHAREDSTATE=\"${DIR_INST}/com\"" >>config
 		echo "#CFG_SYSCONFIG=\"${DIR_INST}/etc\"" >>config
+		echo "# The CFG_MISC is a builder extra variable that can be used per project, but will" >>config
+		echo "# need its associated switch. So, for example, mplayer has a non-standard switch" >>config
+		echo "# to place its codecs. Simply enter \"--codec-dir='/whatever/dir'\" for this" >>config
+		echo "# variable value to use it." >>config
 		echo "#CFG_MISC=\"${DIR_INST}/etc\"" >>config
-		echo " " >>config
+		echo >>config
 		echo "# Specify run-time package dependency list for each package type:" >>config
 		echo "# (e.g. DEP_MAKE_PAK='autogen')" >>config
 		echo "# if all compiled files go in a single package, use _ALL below" >>config
@@ -939,11 +978,11 @@ CODE=''								# the phrase that will uniquely identify the directory containing
 		echo "DEP_EXEC_LOC=''	# only locale files" >>config
 		echo "# Specify compile-time package dependency list to build this software" >>config
 		echo "DEP_MAKE_PAK=''" >>config
-		echo " " >>config
+		echo >>config
 		echo "FLAG_CONF=\"--prefix=${DIR_INST}\"		# parameters to pass to 'configure'" >>config
 		echo "FLAG_INST=\"DESTDIR=${DIR_DUMP}/${NAME}\"		# parameters to pass to 'make install'" >>config
 		echo "FLAG_MAKE=''					# parameters to pass to 'make'" >>config
-		echo " " >>config
+		echo >>config
 		echo "if [ \"$ARCH\" = 'i32' ]; then			# exports for Intel/AMD 32bit processors" >>config
 		echo "	EXPORTS=\"export CFLAGS='-march=i486 -mtune=i686 -Os -pipe'" >>config
 		echo "		export CXXFLAGS='-march=i486 -mtune=i686 -Os -pipe -fno-exceptions -fno-rtti'" >>config
@@ -965,8 +1004,6 @@ CODE=''								# the phrase that will uniquely identify the directory containing
 		echo "		export LDFLAGS='-Wl,-O1'" >>config
 		echo "		export PKG_CONFIG_PATH='/usr/local/lib/pkgconfig:/usr/lib/pkgconfig'\"" >>config
 		echo "fi" >>config
-
-
 
 		echo
 		echo "The template builder profile has been successfully created! It can be found at:"
@@ -1133,7 +1170,7 @@ fi
 #	exit 1
 #}
 [ "$WGET" != '' ] && {
-	if [ "$WGET" != 'dev' ] || [ "$WGET" != 'dir' ] || [ "$WGET" != 'repo' ]; then
+	if [ "$WGET" != 'dev' ] || [ "$WGET" != 'dir' ] || [ "$WGET" != 'repo' ] || [ "$WGET" != 'info' ]; then
 # UPDATED 2025/10/17 - switched case to match pax
 #		echo "ERROR: an invalid value for '-c' was passed."
 		echo "ERROR: an invalid value for '-C' was passed."
@@ -1141,10 +1178,15 @@ fi
 	fi
 
 	TEMP=''
-	( ( [ "$WGET" = 'dev' ] && [ ! "$URL_INFO" ] ) || ( [ "$WGET" = 'dir' ] && [ ! "$DIR_REPO" ] ) || ( [ "$WGET" = 'repo' ] && [ ! "$URL_CODE" ] ) ) && {
-		[ "$WGET" = 'dev' ] && TEMP='URL_INFO'
+# UPDATED 2025/10/20 - these are now different
+#	( ( [ "$WGET" = 'dev' ] && [ ! "$URL_INFO" ] ) || ( [ "$WGET" = 'dir' ] && [ ! "$DIR_REPO" ] ) || ( [ "$WGET" = 'repo' ] && [ ! "$URL_CODE" ] ) ) && {
+	( ( [ "$WGET" = 'dev' ] && [ ! "$URL_CODE" ] ) || ( [ "$WGET" = 'dir' ] && [ ! "$DIR_REPO" ] ) || ( [ "$WGET" = 'repo' ] && [ ! "$URL_REPO" ] ) || ( [ "$WGET" = 'info' ] && [ ! "$URL_INFO" ] ) ) && {
+#		[ "$WGET" = 'dev' ] && TEMP='URL_INFO'
+		[ "$WGET" = 'dev' ] && TEMP='URL_CODE'
 		[ "$WGET" = 'dir' ] && TEMP='DIR_REPO'
-		[ "$WGET" = 'repo' ] && TEMP='URL_CODE'
+#		[ "$WGET" = 'repo' ] && TEMP='URL_CODE'
+		[ "$WGET" = 'repo' ] && TEMP='URL_REPO'
+		[ "$WGET" = 'info' ] && TEMP='URL_INFO'
 # UPDATED 2025/10/17 - switched case to match pax
 #		echo "ERROR: The '-c $WGET' switch requires a $TEMP value." | tee -a "$LOG"
 		echo "ERROR: The '-C $WGET' switch requires a $TEMP value." | tee -a "$LOG"
@@ -1301,6 +1343,7 @@ rm "${DIR_TEMP}/${NAME}/writable" >>"$LOG" 2>&1
 	echo "   DIR_XTRA: $DIR_XTRA" | tee -a "$LOG"
 	echo | tee -a "$LOG"
 	echo "   URL_CODE: $URL_CODE" | tee -a "$LOG"
+	echo "   URL_REPO: $URL_REPO" | tee -a "$LOG"
 	echo "   URL_INFO: $URL_INFO" | tee -a "$LOG"
 	echo | tee -a "$LOG"
 	echo "   EXPORTS:" | tee -a "$LOG"
@@ -1336,8 +1379,9 @@ if [ "$WGET" ]; then										# if we need to obtain the source code before we s
 # UPDATED 2025/10/16 - combined -c, -C, -d to be -c "dev|dir|repo"
 #	[ "$WGET" = 'local' ] && {
 	[ "$WGET" = 'dir' ] && {
-		PACK='all'
-		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
+# REMOVED 2025/10/20 - this does NOT appear to be utilized at all as package() sets its own values, not pre-defined ones
+#		PACK='all'
+#		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
 		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
 		[ ! "$TRIM" ] && TEMP="$NAME"
 		if [ ! -e "$(eval echo ${TEMP}${EXT_CODE})" ]; then				# if the source code is not already copied (e.g. by utilizing the same source code such as php, not like alsa-lib and alsa-config), then...
@@ -1358,9 +1402,12 @@ if [ "$WGET" ]; then										# if we need to obtain the source code before we s
 	}
 # UPDATED 2025/10/16 - combined -c, -C, -d to be -c "dev|dir|repo"
 #	[ "$WGET" = 'private' ] && {
-	[ "$WGET" = 'repo' ] && {
-		PACK='all'
-		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
+# UPDATED 2025/10/20 - this is now using the developer code
+#	[ "$WGET" = 'repo' ] && {
+	[ "$WGET" = 'dev' ] && {
+# REMOVED 2025/10/20 - this does NOT appear to be utilized at all as package() sets its own values, not pre-defined ones
+#		PACK='all'
+#		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
 		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
 		[ ! "$TRIM" ] && TEMP="$NAME"
 		if [ ! -e "$(eval echo ${TEMP}${EXT_CODE})" ]; then
@@ -1369,13 +1416,25 @@ if [ "$WGET" ]; then										# if we need to obtain the source code before we s
 			eval wget "$TEMP" 2>>"$LOG" || stop failed
 		fi
 	}
+	[ "$WGET" = 'repo' ] && {
+		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
+		[ ! "$TRIM" ] && TEMP="$NAME"
+		if [ ! -e "$(eval echo ${TEMP}${EXT_CODE})" ]; then
+			TEMP="$(echo "$URL_REPO" | sed "s/$NAME/$TEMP/g")"			# make name substitution in the URL (e.g. liba52 > a52)
+			eval echo "Calling: wget \"$TEMP\"" >>"$LOG"
+			eval wget "$TEMP" 2>>"$LOG" || stop failed
+		fi
+	}
 # UPDATED 2025/10/16 - combined -c, -C, -d to be -c "dev|dir|repo"
 #	[ "$WGET" = 'public' ] && {
-	[ "$WGET" = 'dev' ] && {
+# UPDATED 2025/10/20 - this is now using the info file
+#	[ "$WGET" = 'dev' ] && {
+	[ "$WGET" = 'info' ] && {
 		OARCH="$ARCH"									# temporarily store the old value
 		ARCH='all'
-		PACK='all'
-		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
+# REMOVED 2025/10/20 - this does NOT appear to be utilized at all as package() sets its own values, not pre-defined ones
+#		PACK='all'
+#		[ "$CODE" ] && PACK="$(echo "${CODE%|*}")"					# if CODE has a value, then we need to set PACK as its preceeding value
 		[ "$TRIM" ] && TEMP="$(echo "$NAME" | sed "s/${TRIM}//")"			# apply the trim beforehand
 		[ ! "$TRIM" ] && TEMP="$NAME"
 		TEMP="$(echo "$URL_INFO" | sed "s/$NAME/$TEMP/g")"				# make name substitution in the URL (e.g. liba52 > a52)
@@ -1416,9 +1475,13 @@ if [ "$WGET" ]; then										# if we need to obtain the source code before we s
 elif [ "$CODE" ]; then										# if we have a CODE value, then we need to change into that directory before we continue!
 	echo -e "\nEntering source code directory..." | tee -a "$LOG"
 
-	TEMP="$(ls -1pd -- * | grep ^"${CODE#*|}" | grep '/'$ | head -1)"
+# UPDATED 2025/10/20 - the first part of CODE does NOT seem to be utilized, so we just need the previous second value as the only value going forward
+#	TEMP="$(ls -1pd -- * | grep ^"${CODE#*|}" | grep '/'$ | head -1)"
+	TEMP="$(ls -1pd -- * | grep ^"$CODE" | grep '/'$ | head -1)"
 	[ ! "$TEMP" ] && {
-		echo -e "Detected:\n$(ls -1pd -- * | grep ^"${CODE#*|}" | grep '/'$ | head -1)" >>"$LOG"
+# UPDATED 2025/10/20 - the first part of CODE does NOT seem to be utilized, so we just need the previous second value as the only value going forward
+#		echo -e "Detected:\n$(ls -1pd -- * | grep ^"${CODE#*|}" | grep '/'$ | head -1)" >>"$LOG"
+		echo -e "Detected:\n$(ls -1pd -- * | grep ^"$CODE" | grep '/'$ | head -1)" >>"$LOG"
 		echo "ERROR: The source code directory could not be found." >>"$LOG"
 		stop failed
 	}
@@ -1428,7 +1491,8 @@ elif [ "$CODE" ]; then										# if we have a CODE value, then we need to chang
 		stop failed
 	}
 fi
-DIR_CODE="$(pwd)"										# set the variable to the location of the source code
+# REMOVED 2025/10/20 - this is not being used
+#DIR_CODE="$(pwd)"										# set the variable to the location of the source code
 
 if [ "$TYPE" = 'autoconf' ] && [ ! -e 'configure.ac' ]; then
 	echo "ERROR: It does not appear that builder was called from within the source code directory." >>"$LOG"
@@ -1520,13 +1584,15 @@ fi
 echo -e "\nGenerating the compile script..." | tee -a "$LOG"
 echo "#!/bin/sh" >"${DIR_TEMP}/${NAME}.build"
 echo >>"${DIR_TEMP}/${NAME}.build"
-echo 'unset DIR_CODE DIR_CONF DIR_DUMP DIR_INCL DIR_INST DIR_MAKE DIR_MODS DIR_REPO DIR_TEMP DIR_XTRA' >>"${DIR_TEMP}/${NAME}.build"		# unset these variables set at the top of this script to not pollute the compile environment
+# REMOVED 2025/10/20 - this is not being used
+#echo 'unset DIR_CODE DIR_CONF DIR_DUMP DIR_INCL DIR_INST DIR_MAKE DIR_MODS DIR_REPO DIR_TEMP DIR_XTRA' >>"${DIR_TEMP}/${NAME}.build"		# unset these variables set at the top of this script to not pollute the compile environment
+echo 'unset DIR_CONF DIR_DUMP DIR_INCL DIR_INST DIR_MAKE DIR_MODS DIR_REPO DIR_TEMP DIR_XTRA' >>"${DIR_TEMP}/${NAME}.build"		# unset these variables set at the top of this script to not pollute the compile environment
 echo 'unset DIR_BIN DIR_ETC DIR_LIB DIR_SBIN DIR_SHARE DIR_VAR DIR_MARKERS DIR_SCRIPTS' >>"${DIR_TEMP}/${NAME}.build"
 echo 'unset DEP_MAKE_ALL' >>"${DIR_TEMP}/${NAME}.build"
 echo 'unset EXT_CODE EXT_DEPS EXT_HASH EXT_INFO EXT_LIST EXT_SOFT' >>"${DIR_TEMP}/${NAME}.build"
 echo 'unset OWN_USER OWN_GROUP' >>"${DIR_TEMP}/${NAME}.build"
 echo 'unset PRM_DIRS PRM_FILES PRM_EXECS' >>"${DIR_TEMP}/${NAME}.build"
-echo 'unset URL_CODE URL_INFO' >>"${DIR_TEMP}/${NAME}.build"
+echo 'unset URL_CODE URL_REPO URL_INFO' >>"${DIR_TEMP}/${NAME}.build"
 echo 'unset SPM_ALL SPM_PAK SPM_UNL' >>"${DIR_TEMP}/${NAME}.build"
 # UPDATED 2017/11/04 - used to keep LOG exported for pre/post scripts
 #echo 'unset CPU LOG SUDO' >>"${DIR_TEMP}/${NAME}.build"
