@@ -81,7 +81,8 @@ Order of operations
 	17. Copy the files into the local repo		pwd=DIR_DUMP
 	18. Execute post.package script			pwd=DIR_DUMP
 	19. Cleanup					pwd=DIR_DUMP
-	20. Initiate the next pass if requested
+	20a. Initiate the next pass if requested
+	20b. Execute cleanup script as final command	pwd=DIR_DUMP
 
 
 Example directory structure
